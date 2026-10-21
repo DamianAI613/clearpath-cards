@@ -1,0 +1,12 @@
+{
+  "name": "ClearPath Cards",
+  "short_name": "Cards",
+  "description": "A free digital business card.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090B",
+  "theme_color": "#09090B",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
