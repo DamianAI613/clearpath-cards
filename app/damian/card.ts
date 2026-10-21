@@ -21,7 +21,7 @@ export const CARD: Card = {
   tagline:
     'Custom automation, AI agents and purpose-built software — engineered by a clinical pharmacist who writes the code.',
   location: 'Carpentersville, IL · remote across the US',
-  accent: '#6366F1',
+  accent: '#4F46E5',
   links: [
     { kind: 'email',    label: 'Email',    value: CONTACT_EMAIL },
     { kind: 'website',  label: 'Website',  value: 'clearpathautomation.io' },

@@ -32,26 +32,30 @@ export type Card = {
   links: CardLink[]
 }
 
-export const DEFAULT_ACCENT = '#6366F1'
+export const DEFAULT_ACCENT = '#4F46E5'
 
 export const EMPTY_CARD: Card = { v: 1, name: '', links: [] }
 
 /* -- Link presentation -------------------------------------------------- */
 
+/* Icons are short glyphs or initials, never emoji and never an exotic
+ * codepoint. A card renders on someone else's phone, on whatever font stack it
+ * has, and a glyph that falls back to a tofu box is worse than two letters.
+ * ⌥ for GitHub rendered as a meaningless mark - hence 'GH'. */
 export const LINK_META: Record<LinkKind, { label: string; icon: string; placeholder: string }> = {
-  email:     { label: 'Email',     icon: '✉',  placeholder: 'you@company.com' },
-  phone:     { label: 'Phone',     icon: '☎',  placeholder: '+1 555 555 5555' },
-  sms:       { label: 'Text',      icon: '💬', placeholder: '+1 555 555 5555' },
-  website:   { label: 'Website',   icon: '◎',  placeholder: 'company.com' },
-  linkedin:  { label: 'LinkedIn',  icon: 'in', placeholder: 'linkedin.com/in/you' },
-  github:    { label: 'GitHub',    icon: '⌥',  placeholder: 'github.com/you' },
-  x:         { label: 'X',         icon: '𝕏',  placeholder: 'x.com/you' },
-  instagram: { label: 'Instagram', icon: '◙',  placeholder: 'instagram.com/you' },
-  facebook:  { label: 'Facebook',  icon: 'f',  placeholder: 'facebook.com/you' },
-  youtube:   { label: 'YouTube',   icon: '▶',  placeholder: 'youtube.com/@you' },
-  calendar:  { label: 'Book time', icon: '◷',  placeholder: 'cal.com/you' },
-  address:   { label: 'Address',   icon: '⌖',  placeholder: 'City, ST' },
-  custom:    { label: 'Link',      icon: '→',  placeholder: 'https://...' },
+  email:     { label: 'Email',     icon: '@',   placeholder: 'you@company.com' },
+  phone:     { label: 'Phone',     icon: '☎',   placeholder: '+1 555 555 5555' },
+  sms:       { label: 'Text',      icon: 'TXT', placeholder: '+1 555 555 5555' },
+  website:   { label: 'Website',   icon: '◎',   placeholder: 'company.com' },
+  linkedin:  { label: 'LinkedIn',  icon: 'in',  placeholder: 'linkedin.com/in/you' },
+  github:    { label: 'GitHub',    icon: 'GH',  placeholder: 'github.com/you' },
+  x:         { label: 'X',         icon: 'X',   placeholder: 'x.com/you' },
+  instagram: { label: 'Instagram', icon: 'IG',  placeholder: 'instagram.com/you' },
+  facebook:  { label: 'Facebook',  icon: 'f',   placeholder: 'facebook.com/you' },
+  youtube:   { label: 'YouTube',   icon: '▶',   placeholder: 'youtube.com/@you' },
+  calendar:  { label: 'Book time', icon: 'CAL', placeholder: 'cal.com/you' },
+  address:   { label: 'Address',   icon: 'LOC', placeholder: 'City, ST' },
+  custom:    { label: 'Link',      icon: '→',   placeholder: 'https://...' },
 }
 
 /** The href a tapped link should open. Bare domains get https:// so a user
@@ -116,8 +120,12 @@ export function toVCard(card: Card): string {
       default: L.push(`URL:${escText(hrefFor(l))}`)
     }
   }
+  /* The location line is written for a human reading the card ("Chicago, IL ·
+   * remote across the US"); a contacts app wants the place, not the sentence.
+   * Keep the part before the separator and drop the editorial. */
   if (card.location && !card.links.some(l => l.kind === 'address')) {
-    L.push(`ADR;TYPE=WORK:;;${escStruct(card.location)};;;;`)
+    const place = card.location.split(/\s[·|]\s/)[0].trim()
+    if (place) L.push(`ADR;TYPE=WORK:;;${escStruct(place)};;;;`)
   }
 
   /* A data-URL photo embeds as base64. Strip the prefix, keep the subtype. */

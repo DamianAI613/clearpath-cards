@@ -22,13 +22,15 @@ const STEPS = ['Who you are', 'Photo', 'Links', 'Publish']
 /* Long enough that some chat apps and QR codes start to struggle. */
 const LONG_URL = 1800
 
+/* Every accent here carries white text at 4.7:1 or better - the card's own
+ * buttons sit on it. A lighter hue would look fine and read badly. */
 const ACCENTS = [
-  { name: 'Indigo', hex: '#6366F1' },
-  { name: 'Teal', hex: '#14B8A6' },
-  { name: 'Amber', hex: '#F59E0B' },
-  { name: 'Rose', hex: '#F43F5E' },
-  { name: 'Violet', hex: '#8B5CF6' },
-  { name: 'Slate', hex: '#64748B' },
+  { name: 'Indigo', hex: '#4F46E5' },
+  { name: 'Teal', hex: '#0F766E' },
+  { name: 'Amber', hex: '#B45309' },
+  { name: 'Rose', hex: '#E11D48' },
+  { name: 'Violet', hex: '#7C3AED' },
+  { name: 'Slate', hex: '#475569' },
 ]
 
 export default function NewCardPage() {

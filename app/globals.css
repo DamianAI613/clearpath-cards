@@ -1,24 +1,45 @@
 /* ClearPath Cards - stylesheet.
- * Tokens mirror clearpath-site so a card and the site read as one brand.
- * --cc-accent is overridden per-card inline, so every rule that paints an
- * accent must read the variable rather than hardcode the indigo. */
+ *
+ * Colour rule, and it is not negotiable: every token used for TEXT clears
+ * 4.5:1 against --cc-bg. The first version of this file failed that badly -
+ * body copy sat at 2.6:1 - so the scale below is measured, not eyeballed.
+ * If you add a shade, measure it before you use it on type.
+ *
+ * Accent handling has two directions because one colour cannot do both jobs:
+ *   --cc-accent        the brand hue. Fills, borders, decoration.
+ *   --cc-accent-text   the same hue mixed toward white, for accent-coloured
+ *                      TEXT on a dark background. Derived, so a card with a
+ *                      custom accent gets a readable text tint for free.
+ * White sits on --cc-accent, so every accent offered in the builder is dark
+ * enough to carry white type (measured: 4.7:1 at worst). */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
   --cc-bg: #09090B;
-  --cc-panel: #0E0E12;
-  --cc-soft: rgba(255, 255, 255, 0.03);
-  --cc-soft2: rgba(255, 255, 255, 0.055);
-  --cc-line: rgba(255, 255, 255, 0.08);
-  --cc-accent: #6366F1;
-  --cc-text: #E2E8F0;
-  --cc-head: #FAFAFA;
-  --cc-muted: #94A3B8;
-  --cc-dim: #64748B;
-  --cc-faint: #475569;
+  --cc-panel: #121216;
+  --cc-soft: rgba(255, 255, 255, 0.045);
+  --cc-soft2: rgba(255, 255, 255, 0.075);
+  --cc-line: rgba(255, 255, 255, 0.12);
+
+  --cc-accent: #4F46E5;
+
+  /* Text scale - contrast against --cc-bg in the comment. */
+  --cc-head: #FAFAFA;   /* 18.9:1 */
+  --cc-text: #E8EDF4;   /* 16.9:1 */
+  --cc-muted: #BAC6D6;  /* 11.5:1 - body copy */
+  --cc-dim: #9AA8BC;    /*  8.2:1 - labels, captions */
+  --cc-faint: #7C8A9E;  /*  5.7:1 - the quietest text allowed */
+
   --cc-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --cc-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+/* Derived accent tint for text. Declared separately so it recomputes whenever
+ * --cc-accent is overridden inline on a card. */
+:root, .cc-card {
+  --cc-accent-text: color-mix(in srgb, var(--cc-accent) 42%, white);
+  --cc-accent-wash: color-mix(in srgb, var(--cc-accent) 20%, transparent);
 }
 
 * { box-sizing: border-box; }
@@ -34,6 +55,8 @@ body {
 
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; }
+
+:focus-visible { outline: 2px solid var(--cc-accent-text); outline-offset: 2px; }
 
 @keyframes ccIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .cc-in { animation: ccIn 0.35s ease-out both; }
@@ -52,7 +75,7 @@ button { font-family: inherit; }
   align-items: center;
   padding: 36px 16px 48px;
   background:
-    radial-gradient(900px 420px at 50% -120px, color-mix(in srgb, var(--cc-accent) 16%, transparent) 0%, transparent 70%),
+    radial-gradient(900px 420px at 50% -140px, color-mix(in srgb, var(--cc-accent) 22%, transparent) 0%, transparent 72%),
     var(--cc-bg);
 }
 
@@ -63,14 +86,14 @@ button { font-family: inherit; }
   border: 1px solid var(--cc-line);
   border-radius: 22px;
   overflow: hidden;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
 }
 
 .cc-cover {
   height: 92px;
   background: linear-gradient(135deg,
-    color-mix(in srgb, var(--cc-accent) 85%, #000) 0%,
-    color-mix(in srgb, var(--cc-accent) 45%, #000) 100%);
+    var(--cc-accent) 0%,
+    color-mix(in srgb, var(--cc-accent) 55%, #000) 100%);
 }
 
 .cc-head { padding: 0 24px 22px; margin-top: -42px; }
@@ -85,17 +108,17 @@ button { font-family: inherit; }
 .cc-monogram {
   width: 88px; height: 88px; border-radius: 50%;
   border: 3px solid var(--cc-panel);
-  background: linear-gradient(135deg, var(--cc-accent), color-mix(in srgb, var(--cc-accent) 50%, #000));
+  background: linear-gradient(135deg, var(--cc-accent), color-mix(in srgb, var(--cc-accent) 55%, #000));
   color: #fff; font-weight: 700; font-size: 1.9rem; letter-spacing: 0.02em;
   display: flex; align-items: center; justify-content: center;
 }
 
-.cc-name { font-size: 1.42rem; font-weight: 700; color: var(--cc-head); margin: 16px 0 0; line-height: 1.25; }
-.cc-creds { font-size: 0.95rem; font-weight: 500; color: var(--cc-muted); }
-.cc-title { font-size: 0.95rem; color: var(--cc-text); margin: 7px 0 0; }
-.cc-org { font-size: 0.88rem; color: var(--cc-accent); font-weight: 600; margin: 3px 0 0; }
-.cc-tagline { font-size: 0.88rem; color: var(--cc-muted); line-height: 1.6; margin: 13px 0 0; }
-.cc-loc { font-size: 0.78rem; color: var(--cc-faint); margin: 9px 0 0; }
+.cc-name { font-size: 1.46rem; font-weight: 700; color: var(--cc-head); margin: 16px 0 0; line-height: 1.25; }
+.cc-creds { font-size: 0.98rem; font-weight: 500; color: var(--cc-dim); }
+.cc-title { font-size: 1rem; color: var(--cc-text); margin: 8px 0 0; }
+.cc-org { font-size: 0.93rem; color: var(--cc-accent-text); font-weight: 650; margin: 4px 0 0; }
+.cc-tagline { font-size: 0.93rem; color: var(--cc-muted); line-height: 1.65; margin: 14px 0 0; }
+.cc-loc { font-size: 0.85rem; color: var(--cc-dim); margin: 10px 0 0; }
 
 /* -- Actions ------------------------------------------------------------ */
 
@@ -103,10 +126,10 @@ button { font-family: inherit; }
   display: block; width: 100%; text-align: center;
   padding: 14px 18px; border: none; border-radius: 12px; cursor: pointer;
   background: var(--cc-accent); color: #fff;
-  font-size: 0.95rem; font-weight: 650; letter-spacing: 0.01em;
+  font-size: 0.98rem; font-weight: 650; letter-spacing: 0.01em;
   transition: filter 0.15s ease, transform 0.15s ease;
 }
-.cc-save:hover { filter: brightness(1.1); }
+.cc-save:hover { filter: brightness(1.14); }
 .cc-save:active { transform: translateY(1px); }
 
 .cc-links { padding: 0 24px 22px; display: flex; flex-direction: column; gap: 8px; }
@@ -117,26 +140,27 @@ button { font-family: inherit; }
   background: var(--cc-soft); border: 1px solid var(--cc-line);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.cc-link:hover { background: var(--cc-soft2); border-color: color-mix(in srgb, var(--cc-accent) 40%, transparent); }
+.cc-link:hover { background: var(--cc-soft2); border-color: var(--cc-accent-text); }
 
 .cc-ico {
   width: 34px; height: 34px; flex: none; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--cc-accent) 16%, transparent);
-  color: var(--cc-accent); font-size: 0.95rem; font-weight: 700;
+  background: var(--cc-accent-wash);
+  color: var(--cc-accent-text); font-size: 0.8rem; font-weight: 750; letter-spacing: 0.01em;
 }
 
-.cc-link-label { font-size: 0.72rem; color: var(--cc-faint); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
-.cc-link-value { font-size: 0.89rem; color: var(--cc-text); word-break: break-word; }
+.cc-link-label { font-size: 0.72rem; color: var(--cc-dim); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 650; }
+.cc-link-value { font-size: 0.92rem; color: var(--cc-text); word-break: break-word; }
 
 .cc-row { display: flex; gap: 8px; padding: 0 24px 20px; }
 .cc-ghost {
   flex: 1; padding: 11px 12px; border-radius: 11px; cursor: pointer;
   background: transparent; border: 1px solid var(--cc-line);
-  color: var(--cc-muted); font-size: 0.82rem; font-weight: 600;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  color: var(--cc-muted); font-size: 0.85rem; font-weight: 600;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
-.cc-ghost:hover { border-color: var(--cc-accent); color: var(--cc-head); }
+.cc-ghost:hover { border-color: var(--cc-accent-text); color: var(--cc-head); background: var(--cc-soft); }
+.cc-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .cc-qr { padding: 0 24px 22px; text-align: center; }
 .cc-qr img { width: 180px; height: 180px; background: #fff; padding: 10px; border-radius: 12px; }
@@ -144,35 +168,35 @@ button { font-family: inherit; }
 .cc-foot {
   border-top: 1px solid var(--cc-line);
   padding: 14px 24px; text-align: center;
-  font-size: 0.73rem; color: var(--cc-faint);
+  font-size: 0.78rem; color: var(--cc-faint);
 }
-.cc-foot a { color: var(--cc-dim); font-weight: 600; }
-.cc-foot a:hover { color: var(--cc-accent); }
+.cc-foot a { color: var(--cc-dim); font-weight: 650; }
+.cc-foot a:hover { color: var(--cc-accent-text); }
 
 /* -- Generic page chrome ------------------------------------------------ */
 
 .cc-wrap { max-width: 1040px; margin: 0 auto; padding: 0 22px; }
 .cc-eyebrow {
-  font-family: var(--cc-mono); font-size: 0.74rem; font-weight: 700;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--cc-accent); margin: 0 0 14px;
+  font-family: var(--cc-mono); font-size: 0.76rem; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--cc-accent-text); margin: 0 0 14px;
 }
-.cc-h1 { font-size: clamp(2rem, 5vw, 3.1rem); font-weight: 800; color: var(--cc-head); line-height: 1.1; margin: 0 0 18px; letter-spacing: -0.02em; }
+.cc-h1 { font-size: clamp(2rem, 5vw, 3.1rem); font-weight: 800; color: var(--cc-head); line-height: 1.12; margin: 0 0 18px; letter-spacing: -0.02em; }
 .cc-h2 { font-size: 1.5rem; font-weight: 700; color: var(--cc-head); margin: 0 0 12px; }
-.cc-lede { font-size: 1.04rem; color: var(--cc-muted); line-height: 1.75; max-width: 620px; margin: 0 0 28px; }
-.cc-note { font-size: 0.82rem; color: var(--cc-faint); line-height: 1.7; }
+.cc-lede { font-size: 1.08rem; color: var(--cc-muted); line-height: 1.75; max-width: 620px; margin: 0 0 28px; }
+.cc-note { font-size: 0.93rem; color: var(--cc-muted); line-height: 1.75; }
 
 .cc-btn {
   display: inline-block; padding: 13px 24px; border-radius: 11px; cursor: pointer;
   background: var(--cc-accent); color: #fff; border: none;
-  font-size: 0.93rem; font-weight: 650;
+  font-size: 0.96rem; font-weight: 650;
 }
-.cc-btn:hover { filter: brightness(1.1); }
+.cc-btn:hover { filter: brightness(1.14); }
 .cc-btn-ghost {
   display: inline-block; padding: 13px 24px; border-radius: 11px; cursor: pointer;
   background: transparent; color: var(--cc-text); border: 1px solid var(--cc-line);
-  font-size: 0.93rem; font-weight: 650;
+  font-size: 0.96rem; font-weight: 650;
 }
-.cc-btn-ghost:hover { border-color: var(--cc-accent); }
+.cc-btn-ghost:hover { border-color: var(--cc-accent-text); background: var(--cc-soft); }
 
 .cc-panel { background: var(--cc-soft); border: 1px solid var(--cc-line); border-radius: 16px; padding: 26px; }
 
@@ -183,36 +207,38 @@ button { font-family: inherit; }
 
 .cc-steps { display: flex; gap: 6px; margin-bottom: 26px; flex-wrap: wrap; }
 .cc-step {
-  flex: 1; min-width: 92px; padding: 9px 10px; border-radius: 9px; cursor: pointer; text-align: center;
+  flex: 1; min-width: 92px; padding: 10px 10px; border-radius: 9px; cursor: pointer; text-align: center;
   background: var(--cc-soft); border: 1px solid var(--cc-line);
-  color: var(--cc-dim); font-size: 0.75rem; font-weight: 650;
+  color: var(--cc-dim); font-size: 0.78rem; font-weight: 650;
 }
-.cc-step[data-on='true'] { background: color-mix(in srgb, var(--cc-accent) 16%, transparent); border-color: var(--cc-accent); color: var(--cc-head); }
+.cc-step:hover { color: var(--cc-text); }
+.cc-step[data-on='true'] { background: var(--cc-accent-wash); border-color: var(--cc-accent-text); color: var(--cc-head); }
 
 .cc-field { margin-bottom: 15px; }
-.cc-label { display: block; font-size: 0.76rem; color: var(--cc-muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
+.cc-label { display: block; font-size: 0.78rem; color: var(--cc-dim); font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
 .cc-input, .cc-textarea, .cc-select {
   width: 100%; padding: 11px 13px; border-radius: 10px;
-  background: #0B0B0F; border: 1px solid var(--cc-line); color: var(--cc-text);
-  font-family: inherit; font-size: 0.92rem;
+  background: #0C0C11; border: 1px solid var(--cc-line); color: var(--cc-text);
+  font-family: inherit; font-size: 0.94rem;
 }
-.cc-input:focus, .cc-textarea:focus, .cc-select:focus { outline: none; border-color: var(--cc-accent); }
+.cc-input::placeholder, .cc-textarea::placeholder { color: var(--cc-faint); }
+.cc-input:focus, .cc-textarea:focus, .cc-select:focus { outline: none; border-color: var(--cc-accent-text); }
 .cc-textarea { resize: vertical; min-height: 74px; line-height: 1.6; }
-.cc-hint { font-size: 0.75rem; color: var(--cc-faint); margin: 5px 0 0; line-height: 1.6; }
+.cc-hint { font-size: 0.84rem; color: var(--cc-dim); margin: 6px 0 0; line-height: 1.65; }
 
 .cc-sticky { position: sticky; top: 26px; }
 
 .cc-warn {
-  border: 1px solid rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.07);
-  color: #FCD34D; border-radius: 11px; padding: 13px 15px; font-size: 0.82rem; line-height: 1.65;
+  border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1);
+  color: #FCD34D; border-radius: 11px; padding: 13px 15px; font-size: 0.88rem; line-height: 1.65;
 }
 .cc-ok {
-  border: 1px solid rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.07);
-  color: #6EE7B7; border-radius: 11px; padding: 13px 15px; font-size: 0.82rem; line-height: 1.65;
+  border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);
+  color: #6EE7B7; border-radius: 11px; padding: 13px 15px; font-size: 0.88rem; line-height: 1.65;
 }
 
 .cc-out {
-  width: 100%; font-family: var(--cc-mono); font-size: 0.74rem; line-height: 1.6;
-  background: #0B0B0F; border: 1px solid var(--cc-line); border-radius: 10px;
+  width: 100%; font-family: var(--cc-mono); font-size: 0.78rem; line-height: 1.6;
+  background: #0C0C11; border: 1px solid var(--cc-line); border-radius: 10px;
   color: var(--cc-muted); padding: 12px; resize: vertical; min-height: 86px; word-break: break-all;
 }
