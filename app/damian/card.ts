@@ -6,11 +6,16 @@ import { type Card } from '../lib/card'
  * page, its metadata and a fixed set of route config fields - exporting the
  * card object from page.tsx is a build error.
  *
- * ---- The one line to change ----
- * CONTACT_EMAIL is a personal Gmail because that is what clearpathautomation.io
- * currently publishes. If info@clearpathautomation.io is live, change it here.
+ * One business address, not two: support@ and info@ both forward to the same
+ * inbox, and a card offering a choice makes the reader make one. info@ is the
+ * address for someone who has not hired you yet, which is every person this
+ * card is handed to. Swap the constant if that ever stops being true.
+ *
+ * The phone is stored in +1 form so the tel: link dials from outside the US
+ * as well; the card prints exactly this string.
  */
-const CONTACT_EMAIL = 'damianwroblewski2016@gmail.com'
+const CONTACT_EMAIL = 'info@clearpathautomation.io'
+const CONTACT_PHONE = '+1 224 628 0264'
 
 export const CARD: Card = {
   v: 1,
@@ -24,6 +29,7 @@ export const CARD: Card = {
   accent: '#4F46E5',
   links: [
     { kind: 'email',    label: 'Email',    value: CONTACT_EMAIL },
+    { kind: 'phone',    label: 'Phone',    value: CONTACT_PHONE },
     { kind: 'website',  label: 'Website',  value: 'clearpathautomation.io' },
     { kind: 'linkedin', label: 'LinkedIn', value: 'linkedin.com/in/damianwroblewski88' },
     { kind: 'github',   label: 'GitHub',   value: 'github.com/DamianAI613' },
