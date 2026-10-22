@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server'
 import { isCard } from '../../../lib/card'
-import { db, readCard, updateCard } from '../../../lib/db'
+import { db, deleteCard, readCard, updateCard } from '../../../lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -54,6 +54,25 @@ export async function PATCH(req: Request, { params }: Ctx) {
     return NextResponse.json({ slug, updated: true })
   } catch (e) {
     console.error('[cards] update failed', e)
+    return NextResponse.json({ error: 'storage_failed' }, { status: 503 })
+  }
+}
+
+export async function DELETE(req: Request, { params }: Ctx) {
+  const { slug } = await params
+  if (!db()) return NextResponse.json({ error: 'storage_unconfigured' }, { status: 503 })
+
+  /* The token travels in a header rather than the query string so it stays
+   * out of access logs and browser history. */
+  const token = req.headers.get('x-edit-token') ?? ''
+  if (!token) return NextResponse.json({ error: 'missing_token' }, { status: 400 })
+
+  try {
+    const ok = await deleteCard(slug, token)
+    if (!ok) return NextResponse.json({ error: 'not_found_or_bad_token' }, { status: 404 })
+    return NextResponse.json({ slug, deleted: true })
+  } catch (e) {
+    console.error('[cards] delete failed', e)
     return NextResponse.json({ error: 'storage_failed' }, { status: 503 })
   }
 }

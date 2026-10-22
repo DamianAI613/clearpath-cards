@@ -191,6 +191,37 @@ export default function NewCardPage() {
     setPublishing(false)
   }
 
+  /* Permanent, and the confirm says so. There is no undo and no copy kept. */
+  async function deleteCard() {
+    if (!editing) return
+    const ok = window.confirm(
+      'Delete this card permanently?\n\n' +
+      'The link stops working immediately for everyone you have given it to. ' +
+      'This cannot be undone and the card cannot be recovered.'
+    )
+    if (!ok) return
+    setPublishing(true)
+    try {
+      const r = await fetch(`/api/cards/${editing.slug}`, {
+        method: 'DELETE',
+        headers: { 'x-edit-token': editing.token },
+      })
+      if (r.ok) {
+        setEditing(null); setPub(null); setQr(null)
+        if (window.location.hash) history.replaceState(null, '', window.location.pathname)
+        setLoadMsg('Card deleted. The old link no longer resolves.')
+        return
+      }
+      setLoadMsg(r.status === 404
+        ? 'That card is already gone, or the edit token no longer matches.'
+        : 'Could not delete the card — storage did not respond.')
+    } catch {
+      setLoadMsg('Could not reach the server to delete the card.')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   /* Load a card back into the builder from any of its links. */
   async function loadFromLink() {
     const raw = loadInput.trim()
@@ -499,14 +530,33 @@ export default function NewCardPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={qr} alt="QR code for your card" width={180} height={180}
                           style={{ background: '#fff', padding: 10, borderRadius: 12, display: 'block' }} />
-                        <p className="cc-hint">Right-click to save. Put it on a slide, a badge, or a printed card.</p>
+                        <a
+                          className="cc-btn-ghost"
+                          href={qr}
+                          download={`${(card.name || 'card').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'card'}-qr.png`}
+                          style={{ marginTop: 10, padding: '9px 16px', fontSize: '0.85rem' }}
+                        >
+                          Download QR (PNG)
+                        </a>
+                        <p className="cc-hint">540×540. Put it on a slide, a badge, or the back of a printed card.</p>
                       </div>
                     )}
                   </div>
                 )}
 
-                <div style={{ marginTop: 22 }}>
+                <div style={{ marginTop: 22, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                   <button className="cc-btn-ghost" onClick={() => setStep(2)} type="button">← Back</button>
+                  {editing && (
+                    <button
+                      className="cc-btn-ghost"
+                      onClick={deleteCard}
+                      disabled={publishing}
+                      type="button"
+                      style={{ borderColor: 'rgba(244,63,94,0.5)', color: '#FDA4AF', marginLeft: 'auto' }}
+                    >
+                      Delete this card
+                    </button>
+                  )}
                 </div>
               </div>
             )}

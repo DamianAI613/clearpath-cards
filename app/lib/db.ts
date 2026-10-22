@@ -140,6 +140,20 @@ export async function updateCard(slug: string, token: string, card: Card): Promi
   return true
 }
 
+/* Deletion is permanent and there is no recovery path, which is the point:
+ * someone who published their phone number must be able to make it stop
+ * existing, not merely stop linking to it. */
+export async function deleteCard(slug: string, token: string): Promise<boolean> {
+  const sql = db()
+  if (!sql) return false
+  await ensureSchema(sql)
+  const rows = (await sql`select token_hash from cards where slug = ${slug}`) as Rows
+  if (!rows.length) return false
+  if (!sameHash(rows[0].token_hash as string, await hashToken(token))) return false
+  await sql`delete from cards where slug = ${slug}`
+  return true
+}
+
 /* Best-effort: a view that fails to count must never fail the page. */
 export async function bumpViews(slug: string): Promise<void> {
   try {
