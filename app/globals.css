@@ -80,6 +80,7 @@ button { font-family: inherit; }
 }
 
 .cc-card {
+  position: relative;
   width: 100%;
   max-width: 420px;
   background: var(--cc-panel);
@@ -122,6 +123,8 @@ button { font-family: inherit; }
 
 /* -- Actions ------------------------------------------------------------ */
 
+.cc-acts { padding: 0 22px 12px; display: flex; flex-direction: column; gap: 8px; }
+
 .cc-save {
   display: block; width: 100%; text-align: center;
   padding: 13px 18px; border: none; border-radius: 12px; cursor: pointer;
@@ -131,6 +134,20 @@ button { font-family: inherit; }
 }
 .cc-save:hover { filter: brightness(1.14); }
 .cc-save:active { transform: translateY(1px); }
+
+/* One share control, in the register of a second action rather than a third
+ * primary one. Shouted in caps because it is the thing you point at when
+ * someone says "send me your info". */
+.cc-share {
+  display: block; width: 100%; text-align: center; cursor: pointer;
+  padding: 12px 18px; border-radius: 12px;
+  background: var(--cc-soft); border: 1px solid var(--cc-line);
+  color: var(--cc-text);
+  font-size: 0.8rem; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.cc-share:hover { border-color: var(--cc-accent-text); color: var(--cc-head); background: var(--cc-soft2); }
+.cc-share:active { transform: translateY(1px); }
 
 .cc-links { padding: 0 22px 12px; display: flex; flex-direction: column; gap: 7px; }
 
@@ -152,7 +169,6 @@ button { font-family: inherit; }
 .cc-link-label { font-size: 0.72rem; color: var(--cc-dim); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 650; }
 .cc-link-value { font-size: 0.92rem; color: var(--cc-text); word-break: break-word; }
 
-.cc-row { display: flex; gap: 8px; padding: 0 22px 14px; }
 .cc-ghost {
   flex: 1; padding: 11px 12px; border-radius: 11px; cursor: pointer;
   background: transparent; border: 1px solid var(--cc-line);
@@ -162,8 +178,42 @@ button { font-family: inherit; }
 .cc-ghost:hover { border-color: var(--cc-accent-text); color: var(--cc-head); background: var(--cc-soft); }
 .cc-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.cc-qr { padding: 0 24px 22px; text-align: center; }
-.cc-qr img { width: 180px; height: 180px; background: #fff; padding: 10px; border-radius: 12px; }
+/* -- The card's own QR -------------------------------------------------- */
+
+/* Parked over the cover band in the top-right corner, so it costs the layout
+ * no height at all - the one-screen rule survives it. White tile on the
+ * accent gradient, because a scanner wants contrast and so does an eye
+ * looking for where to point a camera. */
+.cc-qrmini {
+  position: absolute; top: 10px; right: 12px; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 0; border: 0; background: none; cursor: pointer;
+}
+.cc-qrmini img {
+  width: 74px; height: 74px; display: block;
+  background: #fff; padding: 6px; border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.cc-qrmini span {
+  font-size: 0.62rem; font-weight: 750; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--cc-dim);
+}
+.cc-qrmini:hover img { box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6); transform: translateY(-1px); }
+.cc-qrmini:hover span { color: var(--cc-text); }
+
+/* 74px scans from a hand's length away; across a table it does not. Tapping
+ * the tile covers the card with the same code at a size that does. */
+.cc-qrbig {
+  position: absolute; inset: 0; z-index: 10; cursor: pointer;
+  background: #FFFFFF;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 22px;
+  animation: ccIn 0.18s ease-out both;
+}
+.cc-qrbig img { width: min(80%, 300px); height: auto; display: block; }
+.cc-qrbig-cap { margin: 0; color: #111827; font-size: 0.98rem; font-weight: 700; text-align: center; }
+.cc-qrbig-sub { margin: 0; color: #6B7280; font-size: 0.78rem; text-align: center; }
 
 .cc-foot {
   border-top: 1px solid var(--cc-line);
@@ -288,8 +338,16 @@ button { font-family: inherit; }
 /* On a phone the card should clear the viewport without scrolling, so the
  * stage gives back the breathing room it can afford to lose. */
 @media (max-height: 820px) {
-  .cc-stage { padding: 12px 14px 18px; }
+  .cc-stage { padding: 12px 14px 14px; }
   .cc-cover { height: 56px; }
   .cc-head { margin-top: -30px; padding-bottom: 12px; }
   .cc-tagline { margin-top: 8px; }
+  .cc-qrmini { top: 8px; right: 10px; }
+  .cc-qrmini img { width: 66px; height: 66px; }
+  .cc-acts { padding-bottom: 10px; gap: 7px; }
+  .cc-save { padding: 11px 18px; }
+  .cc-share { padding: 10px 18px; }
+  .cc-more { padding-bottom: 10px; }
+  .cc-owner { padding: 10px 22px 12px; }
+  .cc-foot { padding: 12px 24px; }
 }

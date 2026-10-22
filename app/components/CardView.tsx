@@ -73,7 +73,7 @@ export default function CardView({
   /** True only when this browser can prove it owns the card. */
   owner?: boolean
 }) {
-  const [copied, setCopied] = useState(false)
+  const [note, setNote] = useState('')
   const [showQr, setShowQr] = useState(false)
   const accent = card.accent || DEFAULT_ACCENT
   const { shown, hidden } = split(card.links)
@@ -92,27 +92,62 @@ export default function CardView({
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  async function copyLink() {
+  /* One button, because handing someone your card is one intention.
+   *
+   * On a phone it opens the messaging app with the message already written -
+   * that is the actual gesture people make, and the link it carries is the
+   * whole card, not just a phone number. iOS and Android disagree about the
+   * separator in an sms: URL, and both are wrong on the other platform, so
+   * this picks per platform. Desktop has no messaging app to open, so it
+   * falls back to the share sheet, then to the clipboard. */
+  async function shareInfo() {
     if (preview) return
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1800)
-    } catch { /* permission-gated */ }
-  }
+    const url = window.location.href
+    const who = card.name.trim()
+    const body = who
+      ? `${who} — contact details and links, all on one page: ${url}`
+      : `My contact details and links, all on one page: ${url}`
 
-  async function share() {
-    if (preview) return
-    const data = { title: card.name, text: card.tagline || card.title || '', url: window.location.href }
-    if (typeof navigator.share === 'function') {
-      try { await navigator.share(data); return } catch { /* dismissed */ }
+    const ua = navigator.userAgent || ''
+    const ios = /iPad|iPhone|iPod/.test(ua)
+    const android = /Android/.test(ua)
+    if (ios || android) {
+      window.location.href = `sms:${ios ? '&' : '?'}body=${encodeURIComponent(body)}`
+      return
     }
-    copyLink()
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: who || 'Digital card', text: body, url })
+        return
+      } catch { /* dismissed */ }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setNote('Link copied ✓')
+      setTimeout(() => setNote(''), 1800)
+    } catch { /* permission-gated */ }
   }
 
   return (
     <div className="cc-card cc-in" style={{ ['--cc-accent' as string]: accent }}>
       <div className="cc-cover" />
+
+      {/* The card's own QR, parked in the corner where it costs no vertical
+        * space. Small enough to ignore, close enough to scan, and a tap
+        * blows it up to fill the card for someone standing further away. */}
+      {qr && (
+        <button
+          className="cc-qrmini"
+          type="button"
+          onClick={() => setShowQr(true)}
+          aria-label="Show a larger QR code for this card"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qr} alt="" />
+          <span>Scan me</span>
+        </button>
+      )}
 
       <div className="cc-head">
         {card.photo
@@ -130,9 +165,12 @@ export default function CardView({
         {card.location && <p className="cc-loc">{card.location}</p>}
       </div>
 
-      <div style={{ padding: '0 22px 12px' }}>
+      <div className="cc-acts">
         <button className="cc-save" onClick={saveContact} type="button">
           Save to contacts
+        </button>
+        <button className="cc-share" onClick={shareInfo} type="button">
+          {note || 'Share this info'}
         </button>
       </div>
 
@@ -154,30 +192,6 @@ export default function CardView({
         </details>
       )}
 
-      <div className="cc-row">
-        <button className="cc-ghost" onClick={share} type="button">Share</button>
-        <button className="cc-ghost" onClick={copyLink} type="button">
-          {copied ? 'Copied ✓' : 'Copy link'}
-        </button>
-        {qr !== undefined && (
-          <button className="cc-ghost" onClick={() => setShowQr(v => !v)} type="button">
-            {showQr ? 'Hide QR' : 'QR'}
-          </button>
-        )}
-      </div>
-
-      {showQr && (
-        <div className="cc-qr">
-          {qr
-            ? /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={qr} alt={`QR code linking to ${card.name}'s card`} />
-            : <p className="cc-note" style={{ margin: 0 }}>
-                This card carries a photo, which makes the link too long to fit in a
-                scannable QR code. Remove the photo to get one.
-              </p>}
-        </div>
-      )}
-
       {owner && !preview && <OwnerStrip editHref={editHref} qrHref={qrHref} />}
 
       <div className="cc-foot">
@@ -187,6 +201,20 @@ export default function CardView({
         </a>{' '}
         — free
       </div>
+
+      {showQr && qr && (
+        <div
+          className="cc-qrbig"
+          role="dialog"
+          aria-label="QR code for this card"
+          onClick={() => setShowQr(false)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qr} alt={`QR code linking to ${card.name || 'this'} card`} />
+          <p className="cc-qrbig-cap">Scan me for a quick download</p>
+          <p className="cc-qrbig-sub">Tap anywhere to close</p>
+        </div>
+      )}
     </div>
   )
 }
