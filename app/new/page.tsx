@@ -11,10 +11,18 @@ import {
   type Card, type CardLink, type LinkKind,
   DEFAULT_ACCENT, EMPTY_CARD, LINK_META, isCard,
 } from '../lib/card'
-import { cardUrl, encodeCard } from '../lib/codec'
+import { cardUrl, decodeCard, encodeCard } from '../lib/codec'
 import { downscale } from '../lib/photo'
 import { qrDataUrl } from '../lib/qr'
 import CardView from '../components/CardView'
+
+type Published = { url: string; editUrl?: string; stored: boolean; updated?: boolean }
+
+/* The edit token rides in the fragment, like the cards themselves, so that
+ * handing someone a card link and handing someone edit rights stay visibly
+ * different things. */
+const editHref = (origin: string, slug: string, token: string) =>
+  `${origin}/new#edit=${slug}:${token}`
 
 const DRAFT_KEY = 'clearpath-cards:draft'
 const STEPS = ['Who you are', 'Photo', 'Links', 'Publish']
@@ -38,13 +46,42 @@ export default function NewCardPage() {
   const [card, setCard] = useState<Card>(EMPTY_CARD)
   const [photoErr, setPhotoErr] = useState('')
   const [busy, setBusy] = useState(false)
-  const [url, setUrl] = useState('')
   const [qr, setQr] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
-  /* Restore a draft once, on mount. */
+  /* A published result. `stored` distinguishes the two storage paths, because
+   * what the user can do next differs: a stored card can be edited in place,
+   * a fragment card cannot. */
+  const [pub, setPub] = useState<Published | null>(null)
+  /* Set when this session holds the edit token for an existing stored card.
+   * Publishing then rewrites that row instead of creating another. */
+  const [editing, setEditing] = useState<{ slug: string; token: string } | null>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [loadInput, setLoadInput] = useState('')
+  const [loadMsg, setLoadMsg] = useState('')
+
+  /* On mount: an edit link wins over a saved draft, then fall back to the
+   * draft. The edit token travels in the fragment rather than the query
+   * string so it never reaches the server in a page request - the only place
+   * it is ever transmitted is the PATCH that uses it. */
   useEffect(() => {
+    const m = /(?:^|[#&])edit=([a-z0-9]+):([a-f0-9]+)/i.exec(window.location.hash)
+    if (m) {
+      const [, slug, token] = m
+      setLoadMsg('Loading your card…')
+      fetch(`/api/cards/${slug}`)
+        .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then(({ card: c }) => {
+          if (!isCard(c)) throw new Error('bad card')
+          setCard(c)
+          setEditing({ slug, token })
+          setLoadMsg('')
+        })
+        .catch(() => setLoadMsg('That edit link did not open — the card may have been removed.'))
+        .finally(() => setLoaded(true))
+      return
+    }
     try {
       const raw = localStorage.getItem(DRAFT_KEY)
       if (raw) {
@@ -101,22 +138,120 @@ export default function NewCardPage() {
     })
   }
 
-  function publish() {
-    const u = cardUrl(card)
-    setUrl(u)
+  /* Publish, in three descending preferences:
+   *   1. rewrite the row this session already holds the token for
+   *   2. create a new row and hand back a short link plus an edit link
+   *   3. storage unavailable - fall back to the fragment, which always works
+   * Only (3) changes the user's outcome, and it says so rather than failing. */
+  async function publish() {
+    setPublishing(true)
+    setLoadMsg('')
+    const origin = window.location.origin
+    try {
+      if (editing) {
+        const r = await fetch(`/api/cards/${editing.slug}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: editing.token, card }),
+        })
+        if (r.ok) {
+          const u = `${origin}/s/${editing.slug}`
+          setPub({ url: u, editUrl: editHref(origin, editing.slug, editing.token), stored: true, updated: true })
+          qrDataUrl(u).then(setQr)
+          return
+        }
+        /* The row is gone or the token is wrong. Do not silently create a
+         * second card under a link the user thinks they are updating. */
+        setLoadMsg('That card could not be updated — the link or token is no longer valid. Publishing below will create a new card.')
+        setEditing(null)
+      } else {
+        const r = await fetch('/api/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(card),
+        })
+        if (r.ok) {
+          const { slug, token } = await r.json()
+          const u = `${origin}/s/${slug}`
+          setEditing({ slug, token })
+          setPub({ url: u, editUrl: editHref(origin, slug, token), stored: true })
+          qrDataUrl(u).then(setQr)
+          return
+        }
+      }
+    } catch {
+      /* network down, offline, blocked - same fallback */
+    } finally {
+      setPublishing(false)
+    }
+
+    const u = cardUrl(card, origin)
+    setPub({ url: u, stored: false })
     qrDataUrl(u).then(setQr)
+    setPublishing(false)
+  }
+
+  /* Load a card back into the builder from any of its links. */
+  async function loadFromLink() {
+    const raw = loadInput.trim()
+    if (!raw) return
+    setLoadMsg('')
+
+    const edit = /[#&]edit=([a-z0-9]+):([a-f0-9]+)/i.exec(raw)
+    if (edit) {
+      const [, slug, token] = edit
+      try {
+        const r = await fetch(`/api/cards/${slug}`)
+        if (!r.ok) throw new Error()
+        const { card: c } = await r.json()
+        if (!isCard(c)) throw new Error()
+        setCard(c); setEditing({ slug, token }); setPub(null); setLoadInput('')
+        setLoadMsg('Loaded. Publishing will update that same link.')
+      } catch {
+        setLoadMsg('Could not open that edit link.')
+      }
+      return
+    }
+
+    const frag = raw.indexOf('#')
+    if (frag !== -1 && raw.includes('/c#')) {
+      const c = decodeCard(raw.slice(frag + 1))
+      if (!c) { setLoadMsg('That card link could not be read.'); return }
+      setCard(c); setEditing(null); setPub(null); setLoadInput('')
+      setLoadMsg('Loaded. This kind of link cannot be changed in place, so publishing makes a new link.')
+      return
+    }
+
+    const stored = /\/s\/([a-z0-9]+)/i.exec(raw)
+    if (stored) {
+      try {
+        const r = await fetch(`/api/cards/${stored[1]}`)
+        if (!r.ok) throw new Error()
+        const { card: c } = await r.json()
+        if (!isCard(c)) throw new Error()
+        setCard(c); setEditing(null); setPub(null); setLoadInput('')
+        setLoadMsg('Loaded a copy. Without the edit link you cannot change the original, so publishing makes a new card.')
+      } catch {
+        setLoadMsg('Could not find that card.')
+      }
+      return
+    }
+
+    setLoadMsg('That does not look like a ClearPath card link.')
   }
 
   async function copy() {
+    if (!pub) return
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(pub.url)
       setCopied(true)
       setTimeout(() => setCopied(false), 1800)
     } catch { /* permission-gated */ }
   }
 
   function startOver() {
-    setCard(EMPTY_CARD); setUrl(''); setQr(null); setStep(0)
+    setCard(EMPTY_CARD); setPub(null); setQr(null); setStep(0); setEditing(null); setLoadMsg('')
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname)
     try { localStorage.removeItem(DRAFT_KEY) } catch { /* private mode */ }
   }
 
@@ -144,6 +279,25 @@ export default function NewCardPage() {
             {step === 0 && (
               <div className="cc-panel">
                 <h2 className="cc-h2">Who you are</h2>
+
+                <div className="cc-field" style={{ paddingBottom: 16, borderBottom: '1px solid var(--cc-line)', marginBottom: 20 }}>
+                  <label className="cc-label" htmlFor="f-load">Already have a card? Paste its link</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input id="f-load" className="cc-input" value={loadInput}
+                      onChange={e => setLoadInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); loadFromLink() } }}
+                      placeholder="card.clearpathautomation.io/s/… or your edit link" />
+                    <button className="cc-btn-ghost" style={{ flex: 'none', padding: '11px 16px' }}
+                      onClick={loadFromLink} type="button">Load</button>
+                  </div>
+                  {loadMsg && <p className="cc-hint">{loadMsg}</p>}
+                  {editing && (
+                    <p className="cc-hint" style={{ color: 'var(--cc-accent-text)' }}>
+                      Editing published card <strong>{editing.slug}</strong> — publishing updates it in place.
+                    </p>
+                  )}
+                </div>
+
                 <div className="cc-field">
                   <label className="cc-label" htmlFor="f-name">Name <span style={{ color: '#F43F5E' }}>*</span></label>
                   <input id="f-name" className="cc-input" value={card.name}
@@ -298,24 +452,47 @@ export default function NewCardPage() {
                   </div>
                 )}
 
-                <button className="cc-btn" onClick={publish} disabled={!ready} type="button"
-                  style={!ready ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}>
-                  Publish card
+                <button className="cc-btn" onClick={publish} disabled={!ready || publishing} type="button"
+                  style={!ready || publishing ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}>
+                  {publishing ? 'Publishing…' : editing ? 'Update this card' : 'Publish card'}
                 </button>
 
-                {url && (
+                {editing && !pub && (
+                  <p className="cc-hint">
+                    You are editing a published card. Updating rewrites it at its existing link —
+                    everyone you have already given it to sees the change.
+                  </p>
+                )}
+
+                {pub && (
                   <div style={{ marginTop: 22 }}>
-                    <div className="cc-ok" style={{ marginBottom: 14 }}>
-                      Published. This link has no database behind it — it will keep working for as
-                      long as the site is up, and nothing can delete your card but you.
+                    <div className={pub.stored ? 'cc-ok' : 'cc-warn'} style={{ marginBottom: 14 }}>
+                      {pub.stored
+                        ? pub.updated
+                          ? 'Updated. The link below is unchanged — anyone already holding it now sees the new version.'
+                          : 'Published. Keep the edit link below: it is the only way to change this card later, and it is not recoverable.'
+                        : 'Published without the database — storage was unreachable, so this is a self-contained link. It works permanently and needs nothing to stay up, but it cannot be edited later and it is long.'}
                     </div>
                     <label className="cc-label" htmlFor="f-url">Your card link</label>
-                    <textarea id="f-url" className="cc-out" readOnly value={url}
+                    <textarea id="f-url" className="cc-out" readOnly value={pub.url}
                       onFocus={e => e.currentTarget.select()} />
                     <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
                       <button className="cc-btn" onClick={copy} type="button">{copied ? 'Copied ✓' : 'Copy link'}</button>
-                      <a className="cc-btn-ghost" href={url} target="_blank" rel="noopener noreferrer">Open card ↗</a>
+                      <a className="cc-btn-ghost" href={pub.url} target="_blank" rel="noopener noreferrer">Open card ↗</a>
                     </div>
+
+                    {pub.editUrl && (
+                      <div style={{ marginTop: 18 }}>
+                        <label className="cc-label" htmlFor="f-edit">Private edit link — save this</label>
+                        <textarea id="f-edit" className="cc-out" readOnly value={pub.editUrl}
+                          onFocus={e => e.currentTarget.select()} />
+                        <p className="cc-hint">
+                          Anyone with this link can rewrite your card, so do not share it. It is
+                          stored as a one-way hash on our side, which means we cannot send it to
+                          you again if you lose it.
+                        </p>
+                      </div>
+                    )}
                     {qr && (
                       <div style={{ marginTop: 20 }}>
                         <span className="cc-label">QR code</span>
