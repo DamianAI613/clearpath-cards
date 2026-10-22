@@ -67,7 +67,7 @@ export default async function StoredCard({ params }: Props) {
 
   return (
     <main className="cc-stage">
-      <HostedCard card={row.data} />
+      <HostedCard card={row.data} slug={slug} />
     </main>
   )
 }

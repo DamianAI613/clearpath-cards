@@ -73,7 +73,7 @@ button { font-family: inherit; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 36px 16px 48px;
+  padding: 28px 16px 36px;
   background:
     radial-gradient(900px 420px at 50% -140px, color-mix(in srgb, var(--cc-accent) 22%, transparent) 0%, transparent 72%),
     var(--cc-bg);
@@ -90,41 +90,41 @@ button { font-family: inherit; }
 }
 
 .cc-cover {
-  height: 92px;
+  height: 64px;
   background: linear-gradient(135deg,
     var(--cc-accent) 0%,
     color-mix(in srgb, var(--cc-accent) 55%, #000) 100%);
 }
 
-.cc-head { padding: 0 24px 22px; margin-top: -42px; }
+.cc-head { padding: 0 22px 16px; margin-top: -34px; }
 
 .cc-avatar {
-  width: 88px; height: 88px; border-radius: 50%;
+  width: 72px; height: 72px; border-radius: 50%;
   border: 3px solid var(--cc-panel);
   background: var(--cc-soft2);
   object-fit: cover; display: block;
 }
 
 .cc-monogram {
-  width: 88px; height: 88px; border-radius: 50%;
+  width: 72px; height: 72px; border-radius: 50%;
   border: 3px solid var(--cc-panel);
   background: linear-gradient(135deg, var(--cc-accent), color-mix(in srgb, var(--cc-accent) 55%, #000));
-  color: #fff; font-weight: 700; font-size: 1.9rem; letter-spacing: 0.02em;
+  color: #fff; font-weight: 700; font-size: 1.6rem; letter-spacing: 0.02em;
   display: flex; align-items: center; justify-content: center;
 }
 
-.cc-name { font-size: 1.46rem; font-weight: 700; color: var(--cc-head); margin: 16px 0 0; line-height: 1.25; }
+.cc-name { font-size: 1.38rem; font-weight: 700; color: var(--cc-head); margin: 12px 0 0; line-height: 1.22; }
 .cc-creds { font-size: 0.98rem; font-weight: 500; color: var(--cc-dim); }
-.cc-title { font-size: 1rem; color: var(--cc-text); margin: 8px 0 0; }
+.cc-title { font-size: 0.96rem; color: var(--cc-text); margin: 6px 0 0; }
 .cc-org { font-size: 0.93rem; color: var(--cc-accent-text); font-weight: 650; margin: 4px 0 0; }
-.cc-tagline { font-size: 0.93rem; color: var(--cc-muted); line-height: 1.65; margin: 14px 0 0; }
-.cc-loc { font-size: 0.85rem; color: var(--cc-dim); margin: 10px 0 0; }
+.cc-tagline { font-size: 0.89rem; color: var(--cc-muted); line-height: 1.55; margin: 10px 0 0; }
+.cc-loc { font-size: 0.82rem; color: var(--cc-dim); margin: 8px 0 0; }
 
 /* -- Actions ------------------------------------------------------------ */
 
 .cc-save {
   display: block; width: 100%; text-align: center;
-  padding: 14px 18px; border: none; border-radius: 12px; cursor: pointer;
+  padding: 13px 18px; border: none; border-radius: 12px; cursor: pointer;
   background: var(--cc-accent); color: #fff;
   font-size: 0.98rem; font-weight: 650; letter-spacing: 0.01em;
   transition: filter 0.15s ease, transform 0.15s ease;
@@ -132,7 +132,7 @@ button { font-family: inherit; }
 .cc-save:hover { filter: brightness(1.14); }
 .cc-save:active { transform: translateY(1px); }
 
-.cc-links { padding: 0 24px 22px; display: flex; flex-direction: column; gap: 8px; }
+.cc-links { padding: 0 22px 12px; display: flex; flex-direction: column; gap: 7px; }
 
 .cc-link {
   display: flex; align-items: center; gap: 13px;
@@ -152,7 +152,7 @@ button { font-family: inherit; }
 .cc-link-label { font-size: 0.72rem; color: var(--cc-dim); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 650; }
 .cc-link-value { font-size: 0.92rem; color: var(--cc-text); word-break: break-word; }
 
-.cc-row { display: flex; gap: 8px; padding: 0 24px 20px; }
+.cc-row { display: flex; gap: 8px; padding: 0 22px 14px; }
 .cc-ghost {
   flex: 1; padding: 11px 12px; border-radius: 11px; cursor: pointer;
   background: transparent; border: 1px solid var(--cc-line);
@@ -241,4 +241,55 @@ button { font-family: inherit; }
   width: 100%; font-family: var(--cc-mono); font-size: 0.78rem; line-height: 1.6;
   background: #0C0C11; border: 1px solid var(--cc-line); border-radius: 10px;
   color: var(--cc-muted); padding: 12px; resize: vertical; min-height: 86px; word-break: break-all;
+}
+
+/* -- Collapsed secondary links ------------------------------------------ */
+
+.cc-more { padding: 0 22px 12px; }
+.cc-more > summary {
+  list-style: none; cursor: pointer;
+  padding: 10px 14px; border-radius: 11px;
+  background: var(--cc-soft); border: 1px solid var(--cc-line);
+  color: var(--cc-dim); font-size: 0.84rem; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.cc-more > summary::-webkit-details-marker { display: none; }
+.cc-more > summary::after {
+  content: '▾'; margin-left: auto; font-size: 0.8rem; transition: transform 0.15s ease;
+}
+.cc-more[open] > summary::after { transform: rotate(180deg); }
+.cc-more > summary:hover { color: var(--cc-text); border-color: var(--cc-accent-text); }
+.cc-more .cc-links { padding-left: 0; padding-right: 0; padding-bottom: 0; }
+
+/* -- Owner controls ------------------------------------------------------ */
+
+.cc-owner {
+  border-top: 1px solid var(--cc-line);
+  padding: 12px 22px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cc-owner-label {
+  font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
+  font-weight: 700; color: var(--cc-faint);
+}
+.cc-owner-row { display: flex; gap: 7px; flex-wrap: wrap; }
+.cc-chip {
+  padding: 7px 12px; border-radius: 9px; cursor: pointer;
+  background: transparent; border: 1px solid var(--cc-line);
+  color: var(--cc-dim); font-size: 0.79rem; font-weight: 600;
+  text-decoration: none; display: inline-block;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.cc-chip:hover { color: var(--cc-head); border-color: var(--cc-accent-text); background: var(--cc-soft); }
+.cc-owner-howto { margin: 0; font-size: 0.79rem; color: var(--cc-muted); line-height: 1.6; }
+.cc-owner-howto strong { color: var(--cc-text); }
+
+/* On a phone the card should clear the viewport without scrolling, so the
+ * stage gives back the breathing room it can afford to lose. */
+@media (max-height: 820px) {
+  .cc-stage { padding: 12px 14px 18px; }
+  .cc-cover { height: 56px; }
+  .cc-head { margin-top: -30px; padding-bottom: 12px; }
+  .cc-tagline { margin-top: 8px; }
 }

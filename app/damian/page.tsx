@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import CardView from '../components/CardView'
-import OwnCardExtras from './OwnCardExtras'
 import { CARD } from './card'
 
 /* Damian's own card.
@@ -13,6 +12,7 @@ import { CARD } from './card'
  * by hand for a single card. */
 
 export const metadata: Metadata = {
+  manifest: '/damian/manifest.webmanifest',
   title: 'Damian Wroblewski, PharmD, MHA',
   description: `${CARD.title} · ${CARD.org} — ${CARD.tagline}`,
   openGraph: {
@@ -26,8 +26,7 @@ export const metadata: Metadata = {
 export default function DamianCard() {
   return (
     <main className="cc-stage">
-      <CardView card={CARD} />
-      <OwnCardExtras />
+      <CardView card={CARD} owner qrHref="/damian/qr" />
     </main>
   )
 }

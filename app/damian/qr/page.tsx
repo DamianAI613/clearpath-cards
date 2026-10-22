@@ -14,6 +14,7 @@ import { CARD } from '../card'
 const CARD_URL = 'https://card.clearpathautomation.io/damian'
 
 export const metadata: Metadata = {
+  manifest: '/damian/manifest.webmanifest',
   title: 'Scan my card',
   robots: { index: false },
 }

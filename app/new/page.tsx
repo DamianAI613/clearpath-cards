@@ -12,6 +12,7 @@ import {
   DEFAULT_ACCENT, EMPTY_CARD, LINK_META, isCard,
 } from '../lib/card'
 import { cardUrl, decodeCard, encodeCard } from '../lib/codec'
+import { rememberOwned } from '../lib/owned'
 import { downscale } from '../lib/photo'
 import { qrDataUrl } from '../lib/qr'
 import CardView from '../components/CardView'
@@ -76,6 +77,7 @@ export default function NewCardPage() {
           if (!isCard(c)) throw new Error('bad card')
           setCard(c)
           setEditing({ slug, token })
+          rememberOwned(slug, token)
           setLoadMsg('')
         })
         .catch(() => setLoadMsg('That edit link did not open — the card may have been removed.'))
@@ -174,6 +176,7 @@ export default function NewCardPage() {
           const { slug, token } = await r.json()
           const u = `${origin}/s/${slug}`
           setEditing({ slug, token })
+          rememberOwned(slug, token)
           setPub({ url: u, editUrl: editHref(origin, slug, token), stored: true })
           qrDataUrl(u).then(setQr)
           return
@@ -236,7 +239,7 @@ export default function NewCardPage() {
         if (!r.ok) throw new Error()
         const { card: c } = await r.json()
         if (!isCard(c)) throw new Error()
-        setCard(c); setEditing({ slug, token }); setPub(null); setLoadInput('')
+        setCard(c); setEditing({ slug, token }); rememberOwned(slug, token); setPub(null); setLoadInput('')
         setLoadMsg('Loaded. Publishing will update that same link.')
       } catch {
         setLoadMsg('Could not open that edit link.')
