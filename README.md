@@ -1,65 +1,87 @@
 # ClearPath Cards — card.clearpathautomation.io
 
-A free digital business card. **No database, no server code, no environment variables.**
+A free digital business card. One link, a QR code, and a Save-to-contacts button that writes a
+real vCard. No account, no signup, no login.
 
 ## The idea
 
-A business card has to work forever. That is a hard promise for anything database-backed, so
-nothing here hard-depends on a database. A card is a plain JSON object with two possible homes:
+A business card has to keep working, and it has to be correctable. Those two requirements pull in
+opposite directions, so a card here has **two independent homes** and the app degrades from one to
+the other rather than failing.
 
-| Path | How it works | What it buys | What it costs |
+| Path | Where the card lives | What it buys | What it costs |
 |---|---|---|---|
-| **Fragment** (built) | The whole card LZ-compressed into the URL after `#` | No database, no row, no server, no env var. Cannot be deleted or 404'd. The fragment is never transmitted, so the card never reaches a server at all. | Long links; no Open Graph preview; too long for a QR once a photo is inlined |
-| **Shortlink** (not built) | A row in Postgres behind `/s/<id>` | Clean URLs, real OG previews, a view counter | Needs Supabase, and can fail |
+| **Stored** (default) | A row in Postgres behind `/s/<slug>` | Short links, real Open Graph previews, a view counter, and **editing in place** — the link you already handed out shows the new version | Needs a reachable database |
+| **Fragment** (fallback) | LZ-compressed into the URL after `#` | No row, no server, no env var. Cannot be deleted or 404'd, and the fragment is never transmitted, so the card never reaches a server at all | Long links, no preview, too long for a QR once a photo is inlined, and **cannot be edited** |
 
-The fragment path is built first deliberately: it is the half that is independently complete.
-The shortlink path is an *upgrade* behind the same JSON — when it is added, publishing should try
-the row and **fall back to the fragment on any failure**, so a misconfigured database degrades the
-link's appearance and never the user's outcome.
+Publishing tries the database first. If `DATABASE_URL` is absent, or the query throws, or the
+network is down, publish **falls back to a fragment link and says so** instead of erroring. The
+database is an upgrade to the card, never a dependency of it.
+
+## Editing is a capability, not an account
+
+Publishing returns a 48-character edit token. Only its SHA-256 is stored, compared in constant
+time, so a database dump hands out no edit rights — and neither the owner nor the maintainer can
+recover a lost token.
+
+The edit link is `/new#edit=<slug>:<token>`. The token sits in the fragment deliberately: it never
+reaches the server on a page load, only on the PATCH or DELETE that uses it. A wrong token and a
+missing card both return 404, so the endpoint cannot be used to discover which slugs exist.
+
+`DELETE` takes the token in an `x-edit-token` header rather than the query string, to keep it out
+of access logs and browser history. Deletion is permanent, and that is the point: someone who
+published a phone number must be able to make it stop existing.
 
 ## Routes
 
 | Route | What it is |
 |---|---|
-| `/` | Landing page — what it is, why it is free |
-| `/new` | The 4-step builder with a live phone preview |
-| `/c#<data>` | A published card, decoded from the fragment in the browser |
-| `/damian` | Damian's own card on a clean path — the email-signature link |
+| `/` | Landing page |
+| `/new` | The 4-step builder, with a live phone preview. Also loads an existing card back in from any of its links |
+| `/s/<slug>` | A stored card, server-rendered with per-card OG tags |
+| `/c#<data>` | A fragment card, decoded in the browser |
+| `/damian` | One fixed card on a clean path — deliberately not a row, since the route already gives it a short URL and its own OG tags |
+| `/api/cards` | `POST` to publish |
+| `/api/cards/<slug>` | `GET`, `PATCH`, `DELETE` |
 
 ## Architecture
 
-- `app/lib/card.ts` — **the model.** The `Card` type, link kinds, `hrefFor`/`displayFor`, and the
-  vCard generator. No I/O. If you change the shape, bump `v` and keep the decoder reading old ones:
-  published links must never rot.
-- `app/lib/codec.ts` — LZ encode/decode to and from the fragment. A damaged link returns `null`,
-  never throws.
-- `app/lib/photo.ts` — centre-crops and downscales to a 320px JPEG data URL so a card carries its
+- `app/lib/card.ts` — the model. The `Card` type, link kinds, and the vCard generator. No I/O. If
+  you change the shape, bump `v` and keep the decoder reading older ones: published links must
+  never rot.
+- `app/lib/codec.ts` — LZ encode/decode for the fragment path. A damaged link returns `null`.
+- `app/lib/db.ts` — the stored path. One `cards` table, created lazily and idempotently; every
+  function returns null/false rather than throwing when there is no database.
+- `app/lib/photo.ts` — centre-crops and downscales to a 320px JPEG data URL, so a card carries its
   own image and depends on no image host.
 - `app/lib/qr.ts` — returns `null` above ~1,200 characters rather than emitting a dense QR no
-  camera can read. A card with a photo has no QR, and the UI says so.
-- `app/components/CardView.tsx` — **one** card component, used by both the published page and the
+  camera can read. A fragment card with a photo has no QR, and the UI says so.
+- `app/components/CardView.tsx` — **one** card component, shared by the published pages and the
   builder preview, so the preview cannot lie.
 
-## Two things worth knowing before you change something
+## Four things worth knowing before you change something
 
 1. **vCard escaping is split in two.** `escStruct` escapes commas (N, ADR — comma is a delimiter
    there); `escText` does not (FN, ORG, TITLE, NOTE). Escaping a comma in `FN` is permitted by
-   RFC 2426 and mishandled by enough parsers that it shows as `Damian Wroblewski\, PharmD` in
+   RFC 2426 and mishandled by enough parsers that it renders as `Damian Wroblewski\, PharmD` in
    someone's phone — the one place a card cannot look broken.
 2. **The tab title on `/c` is set on a 150 ms timer.** App Router commits `<title>` during
-   hydration, *after* normal effects, so the obvious version is silently reverted. The card exists
-   only in the fragment, so there is no server-rendered title to configure instead.
+   hydration, *after* normal effects, so the obvious version is silently reverted. A fragment card
+   has no server-rendered title to configure instead.
+3. **Every colour used for text clears 4.5:1 against the background, measured.** The first version
+   shipped body copy at 2.6:1. The accent is split into a fill and a derived lighter tint via
+   `color-mix`, so accent-coloured type stays legible for any card accent.
+4. **Storage is Neon, not Supabase.** Supabase's free plan pauses a project after ~7 days of low
+   activity and needs a human to click Resume — which would break every short link, the exact
+   failure the stored path exists to prevent. Neon scales to zero after 5 minutes and wakes itself
+   on the next query. For a card nobody opens for a month, that difference is the whole product.
 
 ## Still to do
 
-- [ ] **Decide the contact email.** `app/damian/card.ts` publishes a personal Gmail, because that
-      is what `clearpathautomation.io` currently publishes. `info@clearpathautomation.io` probably
-      belongs on a business card instead. One constant, one line.
-- [ ] **Add a phone number** to `app/damian/card.ts`, or decide deliberately not to.
-- [ ] DNS: point `card.clearpathautomation.io` at the Vercel project.
-- [ ] Shortlink path (`/s/<id>` + Supabase) with fallback-to-fragment on any failure.
-- [ ] Token-based edit links — re-open a published card in the builder.
+- [ ] A way to list or recover your own cards. Lose the edit link and the card is permanent.
+- [ ] Rate limiting on `POST /api/cards` — nothing currently stops bulk row creation.
 - [ ] PWA icons beyond the single SVG.
+- [ ] Decide whether `/damian` should carry a phone number by default for a public card.
 
 ## Local
 
@@ -68,7 +90,12 @@ npm install
 npm run dev
 ```
 
+Runs without any environment variable: with no `DATABASE_URL`, publishing uses the fragment path
+and the stored routes return `503 storage_unconfigured`. That is a supported mode, not a broken
+one, and it is worth testing in.
+
 ## Deploy
 
-Static export-friendly Next 15 app; every route prerenders. Vercel project, no secrets, nothing
-to configure. Domain: `card.clearpathautomation.io`.
+Vercel project `clearpath-cards`, auto-deploys from `main`. Postgres is Neon via the Vercel
+marketplace, which injects `DATABASE_URL` and the `POSTGRES_*`/`PG*` set as sensitive variables.
+Domain: `card.clearpathautomation.io`.
