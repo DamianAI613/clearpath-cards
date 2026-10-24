@@ -59,6 +59,7 @@ async function ensureSchema(sql: Sql): Promise<void> {
       await sql`alter table cards add column if not exists pin_salt text`
       await sql`alter table cards add column if not exists pin_tries integer not null default 0`
       await sql`alter table cards add column if not exists pin_locked_until timestamptz`
+      await sql`alter table cards add column if not exists pin_locks integer not null default 0`
       await sql`alter table cards add column if not exists edits integer not null default 0`
       await sql`
         create table if not exists events (
@@ -121,19 +122,37 @@ function sameHash(a: string, b: string): boolean {
 
 /* -- The PIN ------------------------------------------------------------- */
 
-/* Four digits is 10,000 possibilities, which is nothing to a machine. Two
- * separate things make it safe enough to be the recovery path:
+/* Four digits is 10,000 possibilities, which is nothing to a machine.
  *
- *   online  - five wrong tries locks the card for fifteen minutes, so
- *             guessing the space takes years rather than seconds.
- *   offline - if the table itself leaks, PBKDF2 at 150k iterations with a
- *             per-card salt makes enumerating all 10,000 cost real compute
- *             per card rather than one rainbow table for all of them.
+ * The first version of this locked the card for fifteen minutes after five
+ * wrong tries and called that safe. Five tries per fifteen minutes is 480
+ * guesses a day, and 10,000 / 480 is twenty-one days - a patient attacker
+ * targeting one card expects to be in within ten. The rate limit has to
+ * escalate, not just exist.
+ *
+ * So the ladder below, which is shaped around who is actually standing
+ * there. A real owner fumbling their own PIN in front of someone is still
+ * only locked out for thirty seconds; by the third failure in a row they
+ * have clearly forgotten it and are not getting in by guessing anyway. An
+ * attacker is at one or two attempts a day within the hour, which puts
+ * exhaustion past twenty years.
+ *
+ * Offline, if the table itself leaks: PBKDF2 at 150k iterations with a
+ * per-card salt makes enumerating all 10,000 cost real compute per card
+ * rather than one rainbow table for all of them.
  *
  * It is still four digits. It protects a business card, not a bank. */
 const PBKDF2_ITERATIONS = 150_000
 const MAX_TRIES = 5
-const LOCKOUT_MINUTES = 15
+/* 30 seconds, 5 minutes, 2 hours, then doubling to a one-day ceiling. */
+const LOCKOUT_LADDER = [30, 300, 7_200]
+const LOCKOUT_CEILING = 86_400
+
+function lockoutSeconds(lockNumber: number): number {
+  if (lockNumber <= LOCKOUT_LADDER.length) return LOCKOUT_LADDER[lockNumber - 1]
+  const doublings = lockNumber - LOCKOUT_LADDER.length
+  return Math.min(LOCKOUT_CEILING, LOCKOUT_LADDER[LOCKOUT_LADDER.length - 1] * 2 ** doublings)
+}
 
 export function isPin(v: unknown): v is string {
   return typeof v === 'string' && /^\d{4}$/.test(v)
@@ -158,7 +177,7 @@ async function hashPin(pin: string, salt: string): Promise<string> {
 
 export type UnlockResult =
   | { ok: true; token: string }
-  | { ok: false; reason: 'no_pin' | 'wrong' | 'locked'; retryInMinutes?: number }
+  | { ok: false; reason: 'no_pin' | 'wrong' | 'locked'; retryInSeconds?: number; triesLeft?: number }
 
 /* A correct PIN mints a FRESH token and retires the old one.
  *
@@ -172,7 +191,8 @@ export async function unlockCard(slug: string, pin: string): Promise<UnlockResul
   await ensureSchema(sql)
 
   const rows = (await sql`
-    select pin_hash, pin_salt, pin_tries, pin_locked_until
+    select pin_hash, pin_salt, pin_tries, pin_locked_until, pin_locks,
+           (pin_locked_until is not null and pin_locked_until < now() - interval '1 day') as stale
     from cards where slug = ${slug}`) as Rows
   const r = rows[0]
   /* A card with no PIN and a card that does not exist answer identically,
@@ -184,29 +204,39 @@ export async function unlockCard(slug: string, pin: string): Promise<UnlockResul
     return {
       ok: false,
       reason: 'locked',
-      retryInMinutes: Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60000)),
+      retryInSeconds: Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000)),
     }
   }
+
+  /* The ladder forgives. A card whose last lockout expired more than a day
+   * ago starts again at thirty seconds, so one bad week in March does not
+   * mean a two-hour wait in July. An attacker grinding continuously never
+   * gets a day of silence, so it never resets for them. */
+  const priorLocks = r.stale ? 0 : Number(r.pin_locks ?? 0)
 
   const given = await hashPin(pin, r.pin_salt as string)
   if (!sameHash(r.pin_hash as string, given)) {
     const tries = Number(r.pin_tries ?? 0) + 1
     if (tries >= MAX_TRIES) {
+      const locks = priorLocks + 1
+      const seconds = lockoutSeconds(locks)
       await sql`
         update cards
         set pin_tries = 0,
-            pin_locked_until = now() + (${LOCKOUT_MINUTES} || ' minutes')::interval
+            pin_locks = ${locks},
+            pin_locked_until = now() + (${seconds} || ' seconds')::interval
         where slug = ${slug}`
-      return { ok: false, reason: 'locked', retryInMinutes: LOCKOUT_MINUTES }
+      return { ok: false, reason: 'locked', retryInSeconds: seconds }
     }
-    await sql`update cards set pin_tries = ${tries} where slug = ${slug}`
-    return { ok: false, reason: 'wrong' }
+    await sql`update cards set pin_tries = ${tries}, pin_locks = ${priorLocks} where slug = ${slug}`
+    return { ok: false, reason: 'wrong', triesLeft: MAX_TRIES - tries }
   }
 
   const token = newToken()
   await sql`
     update cards
-    set token_hash = ${await hashToken(token)}, pin_tries = 0, pin_locked_until = null
+    set token_hash = ${await hashToken(token)},
+        pin_tries = 0, pin_locks = 0, pin_locked_until = null
     where slug = ${slug}`
   return { ok: true, token }
 }

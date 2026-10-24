@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: Ctx) {
      * exist, on purpose: the difference is only useful to someone probing. */
     const status = result.reason === 'locked' ? 429 : 403
     return NextResponse.json(
-      { error: result.reason, retryInMinutes: result.retryInMinutes },
+      { error: result.reason, retryInSeconds: result.retryInSeconds, triesLeft: result.triesLeft },
       { status },
     )
   } catch (e) {
