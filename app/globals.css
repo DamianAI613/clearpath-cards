@@ -275,6 +275,17 @@ button { font-family: inherit; }
 .cc-pin:focus { outline: none; border-color: var(--cc-accent-text); }
 .cc-unlock-msg { width: 100%; margin: 0; font-size: 0.74rem; color: var(--cc-muted); line-height: 1.5; }
 
+/* The builder's PIN gate. Boxed so it reads as a step that has opened,
+ * rather than as more hint text below a field. */
+.cc-unlock-box {
+  margin-top: 12px; padding: 14px 15px;
+  background: var(--cc-soft); border: 1px solid var(--cc-accent-text); border-radius: 12px;
+}
+.cc-unlock-box code {
+  font-family: var(--cc-mono); font-size: 0.85em;
+  background: var(--cc-soft2); padding: 1px 5px; border-radius: 5px; color: var(--cc-text);
+}
+
 /* -- Generic page chrome ------------------------------------------------ */
 
 .cc-wrap { max-width: 1040px; margin: 0 auto; padding: 0 22px; }

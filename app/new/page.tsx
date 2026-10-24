@@ -25,6 +25,15 @@ type Published = { url: string; editUrl?: string; stored: boolean; updated?: boo
 const editHref = (origin: string, slug: string, token: string) =>
   `${origin}/new#edit=${slug}:${token}`
 
+/* "900 seconds" is not an answer anyone can act on. */
+function humanWait(seconds: number): string {
+  if (seconds < 90) return `${Math.max(5, Math.round(seconds / 5) * 5)} seconds`
+  const mins = Math.ceil(seconds / 60)
+  if (mins < 90) return `${mins} minute${mins === 1 ? '' : 's'}`
+  const hours = Math.ceil(mins / 60)
+  return `${hours} hour${hours === 1 ? '' : 's'}`
+}
+
 const DRAFT_KEY = 'clearpath-cards:draft'
 const STEPS = ['Who you are', 'Photo', 'Links', 'Publish']
 
@@ -61,6 +70,11 @@ export default function NewCardPage() {
   const [publishing, setPublishing] = useState(false)
   const [loadInput, setLoadInput] = useState('')
   const [loadMsg, setLoadMsg] = useState('')
+  /* A public card link was pasted. Its PIN unlocks the original; without
+   * the PIN all we can honestly offer is a copy. */
+  const [pending, setPending] = useState<{ slug: string; name: string } | null>(null)
+  const [pendingPin, setPendingPin] = useState('')
+  const [pendingBusy, setPendingBusy] = useState(false)
   /* Four digits, chosen at publish time, that let the owner edit from a phone
    * that has never seen this browser's localStorage. It is sent once, hashed
    * server-side, and never stored here. */
@@ -76,7 +90,7 @@ export default function NewCardPage() {
    * string so it never reaches the server in a page request - the only place
    * it is ever transmitted is the PATCH that uses it. */
   useEffect(() => {
-    const m = /(?:^|[#&])edit=([a-z0-9]+):([a-f0-9]+)/i.exec(window.location.hash)
+    const m = /(?:^|[#&])edit=([a-z0-9-]+):([a-f0-9]+)/i.exec(window.location.hash)
     if (m) {
       const [, slug, token] = m
       setLoadMsg('Loading your card…')
@@ -290,7 +304,7 @@ export default function NewCardPage() {
     if (!raw) return
     setLoadMsg('')
 
-    const edit = /[#&]edit=([a-z0-9]+):([a-f0-9]+)/i.exec(raw)
+    const edit = /[#&]edit=([a-z0-9-]+):([a-f0-9]+)/i.exec(raw)
     if (edit) {
       const [, slug, token] = edit
       try {
@@ -315,15 +329,20 @@ export default function NewCardPage() {
       return
     }
 
-    const stored = /\/s\/([a-z0-9]+)/i.exec(raw)
+    const stored = /\/s\/([a-z0-9-]+)/i.exec(raw)
     if (stored) {
       try {
         const r = await fetch(`/api/cards/${stored[1]}`)
         if (!r.ok) throw new Error()
         const { card: c } = await r.json()
         if (!isCard(c)) throw new Error()
-        setCard(c); setEditing(null); setPub(null); setLoadInput('')
-        setLoadMsg('Loaded a copy. Without the edit link you cannot change the original, so publishing makes a new card.')
+        /* Do not quietly load a copy. A public link plus the card's PIN is
+         * the same proof the card itself accepts, so ask for it here - this
+         * is where people look, and most of them no longer have the edit
+         * link they were handed at publish. */
+        setPending({ slug: stored[1], name: c.name || 'that card' })
+        setPendingPin('')
+        setLoadMsg('')
       } catch {
         setLoadMsg('Could not find that card.')
       }
@@ -331,6 +350,63 @@ export default function NewCardPage() {
     }
 
     setLoadMsg('That does not look like a ClearPath card link.')
+  }
+
+  /* The PIN route into editing the original. Identical proof to the card's
+   * own unlock, and it mints a fresh token the same way. */
+  async function unlockPending() {
+    if (!pending) return
+    if (!/^\d{4}$/.test(pendingPin)) { setLoadMsg('Four digits.'); return }
+    setPendingBusy(true)
+    setLoadMsg('')
+    try {
+      const r = await fetch(`/api/cards/${pending.slug}/unlock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pendingPin }),
+      })
+      if (r.ok) {
+        const { token } = await r.json()
+        const got = await fetch(`/api/cards/${pending.slug}`)
+        const { card: c } = await got.json()
+        if (!isCard(c)) throw new Error()
+        setCard(c)
+        setEditing({ slug: pending.slug, token })
+        rememberOwned(pending.slug, token)
+        setPending(null); setPendingPin(''); setLoadInput(''); setPub(null)
+        setLoadMsg('Unlocked. Publishing now updates that same link — everyone already holding it sees the change.')
+        return
+      }
+      const { error, retryInSeconds, triesLeft } = await r.json().catch(() => ({ error: 'failed' }))
+      if (error === 'locked') {
+        setLoadMsg(`Too many wrong tries. Try again in ${humanWait(retryInSeconds ?? 30)}.`)
+      } else if (error === 'no_pin') {
+        setLoadMsg('That card was published without a PIN, so it can only be edited from the browser that made it, or with its private edit link.')
+      } else {
+        setLoadMsg(
+          `That PIN does not match${typeof triesLeft === 'number' ? ` — ${triesLeft} ${triesLeft === 1 ? 'try' : 'tries'} left before a short lockout` : ''}.`,
+        )
+      }
+    } catch {
+      setLoadMsg('Could not reach the server.')
+    } finally {
+      setPendingBusy(false)
+      setPendingPin('')
+    }
+  }
+
+  async function copyPending() {
+    if (!pending) return
+    try {
+      const r = await fetch(`/api/cards/${pending.slug}`)
+      const { card: c } = await r.json()
+      if (!isCard(c)) throw new Error()
+      setCard(c); setEditing(null); setPub(null)
+      setPending(null); setPendingPin(''); setLoadInput('')
+      setLoadMsg('Loaded as a copy. Publishing this makes a NEW card at a new link — the original is untouched.')
+    } catch {
+      setLoadMsg('Could not load that card.')
+    }
   }
 
   async function copy() {
@@ -345,6 +421,7 @@ export default function NewCardPage() {
   function startOver() {
     setCard(EMPTY_CARD); setPub(null); setQr(null); setStep(0); setEditing(null); setLoadMsg(''); setPin('')
     setSlug(''); setSlugTouched(false); setSlugState('idle')
+    setPending(null); setPendingPin('')
     if (window.location.hash) history.replaceState(null, '', window.location.pathname)
     try { localStorage.removeItem(DRAFT_KEY) } catch { /* private mode */ }
   }
@@ -375,15 +452,64 @@ export default function NewCardPage() {
                 <h2 className="cc-h2">Who you are</h2>
 
                 <div className="cc-field" style={{ paddingBottom: 16, borderBottom: '1px solid var(--cc-line)', marginBottom: 20 }}>
-                  <label className="cc-label" htmlFor="f-load">Already have a card? Paste its link</label>
+                  <label className="cc-label" htmlFor="f-load">Already have a card? Change it here</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input id="f-load" className="cc-input" value={loadInput}
                       onChange={e => setLoadInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); loadFromLink() } }}
-                      placeholder="card.clearpathautomation.io/s/… or your edit link" />
+                      placeholder="card.clearpathautomation.io/s/your-name" />
                     <button className="cc-btn-ghost" style={{ flex: 'none', padding: '11px 16px' }}
                       onClick={loadFromLink} type="button">Load</button>
                   </div>
+
+                  {/* Said before anything happens, not after. The old version
+                    * explained the copy/original distinction only once a card
+                    * had already been loaded, which is one screen too late to
+                    * be read as a warning. */}
+                  {!pending && !editing && (
+                    <p className="cc-hint">
+                      Paste your card&apos;s own link and we will ask for its 4-digit PIN — that edits
+                      the real card. Pasting anyone&apos;s link <strong>without</strong> the PIN only
+                      loads a <strong>copy</strong>, and publishing a copy creates a brand-new card at
+                      a new link. It never changes the original.
+                    </p>
+                  )}
+
+                  {/* The PIN gate. This is the recovery path: the private edit
+                    * link handed out at publish is no longer the only way in,
+                    * which matters because almost nobody keeps it. */}
+                  {pending && (
+                    <div className="cc-unlock-box">
+                      <p style={{ margin: '0 0 10px', fontSize: '0.9rem', color: 'var(--cc-text)' }}>
+                        Found <strong>{pending.name}</strong> at <code>/s/{pending.slug}</code>.
+                      </p>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <input
+                          className="cc-pin"
+                          value={pendingPin}
+                          onChange={e => setPendingPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); unlockPending() } }}
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          placeholder="••••"
+                          aria-label="The card's 4-digit PIN"
+                          autoFocus
+                        />
+                        <button className="cc-btn" style={{ padding: '10px 18px', fontSize: '0.88rem' }}
+                          onClick={unlockPending} disabled={pendingBusy} type="button">
+                          {pendingBusy ? 'Checking…' : 'Unlock and edit the real card'}
+                        </button>
+                        <button className="cc-btn-ghost" style={{ padding: '10px 16px', fontSize: '0.85rem' }}
+                          onClick={copyPending} type="button">
+                          No PIN — just load a copy
+                        </button>
+                      </div>
+                      <p className="cc-hint" style={{ marginTop: 10 }}>
+                        A copy is a separate card at a different link. The original stays exactly as it is.
+                      </p>
+                    </div>
+                  )}
+
                   {loadMsg && <p className="cc-hint">{loadMsg}</p>}
                   {editing && (
                     <p className="cc-hint" style={{ color: 'var(--cc-accent-text)' }}>
