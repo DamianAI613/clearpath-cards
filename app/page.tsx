@@ -7,8 +7,12 @@ export const metadata: Metadata = {
 
 const POINTS = [
   {
-    h: 'The card lives in the link',
-    b: 'Not in a database you have to trust. The whole card is compressed into the link itself, which means there is no account to lose, no row to delete and no subscription that turns your card into a 404 the month you stop paying.',
+    h: 'A short link you can change later',
+    b: 'Your card is stored, so you get a short link, a QR code and the ability to fix a phone number in ten seconds without reprinting anything. Everyone already holding the link sees the new version. No account: a 4-digit PIN you choose is what proves the card is yours.',
+  },
+  {
+    h: 'And a copy that needs no server at all',
+    b: 'If storage is ever unreachable when you publish, the whole card compresses into the link itself instead — longer, uneditable, and dependent on nothing. It is the same fallback your card falls back to rather than failing, and it says which kind of link you got.',
   },
   {
     h: 'A Save-to-contacts button that works',
@@ -20,7 +24,7 @@ const POINTS = [
   },
   {
     h: 'Free, and it stays free',
-    b: 'No account, no trial, no card on file. Free cards carry a small "Built with ClearPath Cards" line at the bottom. That is the entire business model.',
+    b: 'No account, no trial, no card on file. Every card carries a small "Build your own card" line at the bottom, which is how anyone hears about this. That is the entire business model.',
   },
 ]
 
@@ -67,9 +71,13 @@ export default function Home() {
               clearpathautomation.io ↗
             </a>
           </div>
-          <p className="cc-note" style={{ textAlign: 'center', marginTop: 26 }}>
-            Your card never reaches a server. The part of a link after the <code>#</code> is the one
-            part a browser does not transmit, and that is where your card is kept.
+          <p className="cc-note" style={{ textAlign: 'center', marginTop: 26, maxWidth: 620, marginInline: 'auto' }}>
+            A published card is stored so that its link can stay short and its contents can be
+            corrected later. Everything on it is public to anyone holding the link — that is what a
+            business card is. Nothing is stored about the people who open yours.{' '}
+            <Link href="/privacy" style={{ color: 'var(--cc-accent-text)', fontWeight: 650 }}>
+              What is kept, exactly →
+            </Link>
           </p>
         </div>
       </section>

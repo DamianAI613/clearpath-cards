@@ -736,6 +736,18 @@ export default function NewCardPage() {
                   {publishing ? 'Publishing…' : editing ? 'Update this card' : 'Publish card'}
                 </button>
 
+                {/* Said at the moment of submitting, not buried in a footer
+                  * nobody scrolls to. Everything on a card is public by
+                  * design, and people should meet that sentence before they
+                  * publish a phone number, not after. */}
+                <p className="cc-hint" style={{ marginTop: 10 }}>
+                  Publishing puts this card at a public link — everything on it is readable by
+                  anyone who has that link.{' '}
+                  <Link href="/privacy" style={{ color: 'var(--cc-accent-text)', fontWeight: 650 }}>
+                    What is stored →
+                  </Link>
+                </p>
+
                 {editing && !pub && (
                   <p className="cc-hint">
                     You are editing a published card. Updating rewrites it at its existing link —
