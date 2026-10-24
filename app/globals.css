@@ -248,6 +248,7 @@ button { font-family: inherit; }
 .cc-footlink { font-size: 0.78rem; color: var(--cc-accent-text); font-weight: 650; }
 .cc-footlink:hover { color: var(--cc-head); }
 
+
 /* Deliberately the quietest thing on the card: it is addressed to one person
  * in a thousand, and it must not read as an invitation to strangers. */
 .cc-unlock {
@@ -430,6 +431,8 @@ button { font-family: inherit; }
 .cc-chip-hot { color: var(--cc-head); border-color: var(--cc-accent-text); background: var(--cc-accent-wash); }
 .cc-owner-howto { margin: 0; font-size: 0.79rem; color: var(--cc-muted); line-height: 1.6; }
 .cc-owner-howto strong { color: var(--cc-text); }
+.cc-owner-ok { color: #6EE7B7; }
+.cc-owner-ok strong { color: #A7F3D0; }
 
 /* Three bands of giving things back, in order of what costs the reader
  * least. Everything here is height-based: a tall screen never sees it. */

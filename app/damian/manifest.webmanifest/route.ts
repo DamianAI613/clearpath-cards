@@ -22,7 +22,15 @@ export function GET() {
       display: 'standalone',
       background_color: '#FFFFFF',
       theme_color: '#4F46E5',
-      icons: [{ src: '/apple-icon', sizes: '180x180', type: 'image/png', purpose: 'any' }],
+      /* 192 and 512 are not decoration: Chrome treats a manifest without
+       * both as not installable and silently never fires the install
+       * prompt. The 180 stays for the iOS tile. */
+      icons: [
+        { src: '/damian/app-icon?size=192', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: '/damian/app-icon?size=512', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: '/damian/app-icon?size=512', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: '/apple-icon', sizes: '180x180', type: 'image/png', purpose: 'any' },
+      ],
     },
     { headers: { 'Content-Type': 'application/manifest+json' } }
   )

@@ -2,17 +2,26 @@
 
 /* The card owner's own controls. Deliberately small and visually quieter than
  * the card itself: the card is for the person being handed it, these are for
- * the one holding the phone.
- *
- * Only rendered when this browser can prove it owns the card (it holds the
- * edit token), except on a fixed route like /damian where ownership is a
- * property of the deployment rather than of a token. */
+ * the one holding the phone. */
 
 import { useEffect, useState } from 'react'
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+declare global {
+  interface Window { __cpInstallPrompt?: BeforeInstallPromptEvent | null }
+}
+
+type Platform = 'ios' | 'android' | 'desktop'
+
+function platform(): Platform {
+  const ua = navigator.userAgent || ''
+  if (/iPad|iPhone|iPod/.test(ua)) return 'ios'
+  if (/Android/.test(ua)) return 'android'
+  return 'desktop'
 }
 
 export default function OwnerStrip({
@@ -24,68 +33,96 @@ export default function OwnerStrip({
   /** A dedicated full-screen QR page, when the card has one. */
   qrHref?: string
 }) {
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
+  const [canPrompt, setCanPrompt] = useState(false)
   const [installed, setInstalled] = useState(false)
-  const [showHowTo, setShowHowTo] = useState(false)
-  /* Installing does not necessarily put the icon where you are looking.
-   * Both platforms may drop it on a later home-screen page or straight into
-   * the App Library, so the one reliable way to find it is to search. */
-  const [justInstalled, setJustInstalled] = useState(false)
+  const [os, setOs] = useState<Platform>('desktop')
+  /* One slot for whatever the button has to say next, so the strip never
+   * grows two explanations at once. */
+  const [said, setSaid] = useState<'' | 'added' | 'dismissed' | 'howto'>('')
 
   useEffect(() => {
-    /* Already running from the home screen - there is nothing to add. */
+    setOs(platform())
     if (window.matchMedia?.('(display-mode: standalone)').matches) setInstalled(true)
 
-    const onPrompt = (e: Event) => {
-      e.preventDefault()
-      setDeferred(e as BeforeInstallPromptEvent)
+    /* The event may have fired before this component existed - the script in
+     * the document head caught it either way. */
+    if (window.__cpInstallPrompt) setCanPrompt(true)
+    const onReady = () => setCanPrompt(true)
+    const onInstalled = () => { setInstalled(true); setCanPrompt(false); setSaid('added') }
+    window.addEventListener('cp:installable', onReady)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('cp:installable', onReady)
+      window.removeEventListener('appinstalled', onInstalled)
     }
-    window.addEventListener('beforeinstallprompt', onPrompt)
-    window.addEventListener('appinstalled', () => { setInstalled(true); setJustInstalled(true) })
-    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
   }, [])
 
-  /* Chrome fires beforeinstallprompt and lets a page ask. Safari never does -
-   * iOS requires the user to go through the Share sheet themselves, and no
-   * amount of JavaScript changes that. So the button does whichever is real. */
+  /* Chrome can be asked. Safari cannot - iOS requires the user to go through
+   * the Share sheet themselves and no amount of JavaScript changes that - so
+   * the button does whichever of those is real, and says which. */
   async function install() {
+    const deferred = window.__cpInstallPrompt
     if (deferred) {
-      await deferred.prompt()
-      const { outcome } = await deferred.userChoice
-      if (outcome === 'accepted') { setInstalled(true); setJustInstalled(true) }
-      setDeferred(null)
+      setSaid('')
+      try {
+        await deferred.prompt()
+        const { outcome } = await deferred.userChoice
+        if (outcome === 'accepted') { setInstalled(true); setSaid('added') }
+        else setSaid('dismissed')
+      } catch {
+        setSaid('howto')
+      }
+      window.__cpInstallPrompt = null
+      setCanPrompt(false)
       return
     }
-    setShowHowTo(v => !v)
+    setSaid(s => (s === 'howto' ? '' : 'howto'))
   }
 
   return (
     <div className="cc-owner">
       <span className="cc-owner-label">Yours</span>
       <div className="cc-owner-row">
-        {editHref && (
-          <a className="cc-chip cc-chip-hot" href={editHref}>Edit card</a>
-        )}
-        {qrHref && (
-          <a className="cc-chip" href={qrHref}>Show QR</a>
-        )}
+        {editHref && <a className="cc-chip cc-chip-hot" href={editHref}>Edit card</a>}
+        {qrHref && <a className="cc-chip" href={qrHref}>Show QR</a>}
         {!installed && (
-          <button className="cc-chip" onClick={install} type="button">Add to Home Screen</button>
+          <button className="cc-chip" onClick={install} type="button">
+            {canPrompt ? 'Add to Home Screen' : 'How to add to Home Screen'}
+          </button>
         )}
       </div>
-      {showHowTo && (
-        <p className="cc-owner-howto">
-          On iPhone this is a Safari action, not something a page can trigger:
-          tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. It saves as{' '}
-          <strong>My Card</strong> — if it is not on the page you are looking at, swipe down on
-          the home screen and search for that name.
+
+      {said === 'added' && (
+        <p className="cc-owner-howto cc-owner-ok">
+          ✓ Added as <strong>My Card</strong>. Phones often drop a new icon on a later home-screen
+          page or into the app list, so if it is not where you expect, swipe down and search{' '}
+          <strong>My Card</strong>, then drag it where you want it.
         </p>
       )}
-      {justInstalled && (
+
+      {said === 'dismissed' && (
+        <p className="cc-owner-howto">Not added. Tap the button again if you change your mind.</p>
+      )}
+
+      {said === 'howto' && os === 'ios' && (
         <p className="cc-owner-howto">
-          Added as <strong>My Card</strong>. Phones often put a new icon on a later home-screen
-          page or straight into the App Library, so if it is not where you expect, swipe down and
-          search <strong>My Card</strong>. Drag it where you want it from there.
+          On iPhone this is a Safari action, not something a page can trigger: tap{' '}
+          <strong>Share</strong>, then <strong>Add to Home Screen</strong>. It saves as{' '}
+          <strong>My Card</strong>.
+        </p>
+      )}
+
+      {said === 'howto' && os === 'android' && (
+        <p className="cc-owner-howto">
+          Chrome has not offered the install prompt on this page yet. Open the{' '}
+          <strong>⋮</strong> menu top-right and tap <strong>Add to Home screen</strong> — same
+          result. It saves as <strong>My Card</strong>.
+        </p>
+      )}
+
+      {said === 'howto' && os === 'desktop' && (
+        <p className="cc-owner-howto">
+          This is a phone feature. Open the card on your phone and the button installs it there.
         </p>
       )}
     </div>
