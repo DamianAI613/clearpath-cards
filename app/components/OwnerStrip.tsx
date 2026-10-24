@@ -115,8 +115,9 @@ export default function OwnerStrip({
       {said === 'howto' && os === 'android' && (
         <p className="cc-owner-howto">
           Chrome has not offered the install prompt on this page yet. Open the{' '}
-          <strong>⋮</strong> menu top-right and tap <strong>Add to Home screen</strong> — same
-          result. It saves as <strong>My Card</strong>.
+          <strong>⋮</strong> menu top-right, scroll down, and tap{' '}
+          <strong>Install and create shortcut</strong> — older Chrome calls the same thing{' '}
+          <em>Add to Home screen</em>. It saves as <strong>My Card</strong>.
         </p>
       )}
 
