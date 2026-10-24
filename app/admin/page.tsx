@@ -22,11 +22,11 @@ function when(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function Stat({ k, v, d }: { k: string; v: string | number; d: string }) {
+function Stat({ k, v, d, tip }: { k: string; v: string | number; d: string; tip: string }) {
   return (
-    <div className="cc-panel" style={{ padding: '16px 18px 14px' }}>
+    <div className="cc-panel cc-tip" data-tip={tip} tabIndex={0} style={{ padding: '16px 18px 14px' }}>
       <div style={{ fontSize: '0.66rem', letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--cc-dim)', fontWeight: 700 }}>
-        {k}
+        <span className="cc-tip-label">{k}</span>
       </div>
       <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--cc-head)', letterSpacing: '-0.02em', margin: '7px 0 2px', fontVariantNumeric: 'tabular-nums' }}>
         {typeof v === 'number' ? v.toLocaleString() : v}
@@ -63,6 +63,14 @@ function Gate({ failed }: { failed: boolean }) {
         )}
       </div>
     </main>
+  )
+}
+
+function Tip({ t, right, children }: { t: string; right?: boolean; children: React.ReactNode }) {
+  return (
+    <span className={right ? 'cc-tip cc-tip-r' : 'cc-tip'} data-tip={t} tabIndex={0}>
+      <span className="cc-tip-label">{children}</span>
+    </span>
   )
 }
 
@@ -147,29 +155,36 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(168px, 1fr))', gap: 14, marginBottom: 20 }}>
-          <Stat k="Cards created" v={s.cards} d={`+${s.cardsLast7} in the last 7 days`} />
-          <Stat k="Cards edited" v={s.edited} d={s.cards ? `${Math.round((s.edited / s.cards) * 100)}% came back` : 'none yet'} />
-          <Stat k="Card views" v={s.views} d="all cards, all time" />
-          <Stat k="Contacts saved" v={s.saves} d="the tap that matters" />
-          <Stat k="Cards shared" v={s.shares} d="owners handing theirs out" />
-          <Stat k="Build-your-own taps" v={s.ctas} d={s.views ? `${((s.ctas / s.views) * 100).toFixed(1)}% of views` : 'the growth loop'} />
-          <Stat k="To clearpathautomation.io" v={s.outs} d={s.views ? `${((s.outs / s.views) * 100).toFixed(1)}% of views` : 'the business end'} />
+          <Stat k="Cards created" v={s.cards} d={`+${s.cardsLast7} in the last 7 days`}
+            tip="How many cards exist right now. A card its owner deleted is gone from this number — this is a count of what is live, not of everything ever made." />
+          <Stat k="Cards edited" v={s.edited} d={s.cards ? `${Math.round((s.edited / s.cards) * 100)}% came back` : 'none yet'}
+            tip="Cards whose owner came back and changed something at least once. The clearest signal that someone is using their card rather than having tried the tool." />
+          <Stat k="Card views" v={s.views} d="all cards, all time"
+            tip="Times any card page was opened. Not unique people: nothing is stored about who viewed what, so the same person opening a card twice counts twice." />
+          <Stat k="Contacts saved" v={s.saves} d="the tap that matters"
+            tip="Taps on Save to contacts, across every card. This is the number that says the product works — a vCard actually landed in someone's phone." />
+          <Stat k="Cards shared" v={s.shares} d="owners handing theirs out"
+            tip="Taps on SHARE THIS INFO — a card owner sending their own card to someone. High here with low views means links are being sent and not opened." />
+          <Stat k="Build-your-own taps" v={s.ctas} d={s.views ? `${((s.ctas / s.views) * 100).toFixed(1)}% of views` : 'the growth loop'}
+            tip="Taps on the footer button that only visitors see. Each one is a stranger who was handed someone's card and went off to make their own — this is the growth loop, measured." />
+          <Stat k="To clearpathautomation.io" v={s.outs} d={s.views ? `${((s.outs / s.views) * 100).toFixed(1)}% of views` : 'the business end'}
+            tip="Visitors who tapped through from a card to the main site. The free tool exists partly to produce this number." />
         </div>
 
-        <div className="cc-panel" style={{ padding: '18px 10px 6px', overflowX: 'auto' }}>
+        <div className="cc-panel cc-tablewrap" style={{ padding: '18px 10px 6px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 900 }}>
             <thead>
               <tr>
-                <th style={th}>Card</th>
-                <th style={th}>Created</th>
-                <th style={th}>Owner phone</th>
-                <th style={thr}>Views</th>
-                <th style={thr}>Saves</th>
-                <th style={thr}>Shares</th>
-                <th style={thr}>QR</th>
-                <th style={thr}>Build</th>
-                <th style={thr}>ClearPath</th>
-                <th style={th}>Last edit</th>
+                <th style={th}><Tip t="The card's public name, its short link, and whether it has a PIN. No PIN means it can only ever be edited from the browser that made it.">Card</Tip></th>
+                <th style={th}><Tip t="The day the card was published.">Created</Tip></th>
+                <th style={th}><Tip t="The number this card's own creator put on their card. It is already public on the card itself. Visitors' numbers are not here and cannot be — no browser will give a page one.">Owner phone</Tip></th>
+                <th style={thr}><Tip right t="Times this card's page was opened, by anyone, the owner included. Not unique people: no cookie is set, so one person opening it twice counts twice.">Views</Tip></th>
+                <th style={thr}><Tip right t="Taps on Save to contacts. The moment the card does its job — these details are now in someone's phone.">Saves</Tip></th>
+                <th style={thr}><Tip right t="Taps on SHARE THIS INFO, which is the owner sending this card to someone. On a phone it opens Messages with the link already written.">Shares</Tip></th>
+                <th style={thr}><Tip right t="Times the corner QR was tapped to fill the screen — someone holding their phone up to be scanned.">QR</Tip></th>
+                <th style={thr}><Tip right t="Taps on &ldquo;Build your own card — free&rdquo; in this card's footer. That button is shown to visitors only, so each one is a stranger who was handed this card and went to make their own.">Build</Tip></th>
+                <th style={thr}><Tip right t="Visitors who left this card for clearpathautomation.io. The direct line from the free tool to the business.">ClearPath</Tip></th>
+                <th style={th}><Tip t="The last time the owner changed anything. A dash means they published it once and never came back.">Last edit</Tip></th>
                 <th style={{ ...th, textAlign: 'right' }}>&nbsp;</th>
               </tr>
             </thead>

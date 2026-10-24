@@ -360,6 +360,41 @@ button { font-family: inherit; }
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 .cc-chip:hover { color: var(--cc-head); border-color: var(--cc-accent-text); background: var(--cc-soft); }
+/* -- Hover explanations -------------------------------------------------- */
+
+/* A number on a dashboard is only as useful as the sentence defining it, and
+ * that sentence is too long to print beside every one of them. CSS-only so
+ * it costs no JavaScript; focusable so it also opens on a tap. */
+.cc-tip { position: relative; cursor: help; }
+.cc-tip::after {
+  content: attr(data-tip);
+  position: absolute; left: 0; top: calc(100% + 8px);
+  width: max-content; max-width: 260px;
+  padding: 10px 12px; border-radius: 10px;
+  background: #17171D; border: 1px solid var(--cc-line);
+  color: var(--cc-text);
+  font-size: 0.78rem; font-weight: 400; line-height: 1.55;
+  letter-spacing: 0; text-transform: none; text-align: left;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
+  opacity: 0; visibility: hidden; transform: translateY(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 20; pointer-events: none;
+}
+.cc-tip:hover::after, .cc-tip:focus::after, .cc-tip:focus-visible::after {
+  opacity: 1; visibility: visible; transform: none;
+}
+/* Right-hand columns would push their tooltip off the table. */
+.cc-tip-r::after { left: auto; right: 0; }
+
+/* The table scrolls sideways on a narrow screen, and a scroll container
+ * clips in both directions - which eats the bottom of a header's tooltip.
+ * Wide enough to show the whole table, the clipping is not needed, so it
+ * is turned off exactly there. Narrow screens are touch screens with no
+ * hover to clip anyway. */
+.cc-tablewrap { overflow-x: auto; }
+@media (min-width: 1000px) { .cc-tablewrap { overflow: visible; } }
+.cc-tip-label { border-bottom: 1px dotted var(--cc-faint); }
+
 .cc-chip-hot { color: var(--cc-head); border-color: var(--cc-accent-text); background: var(--cc-accent-wash); }
 .cc-owner-howto { margin: 0; font-size: 0.79rem; color: var(--cc-muted); line-height: 1.6; }
 .cc-owner-howto strong { color: var(--cc-text); }
