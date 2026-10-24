@@ -93,6 +93,7 @@ function Row({ r }: { r: CardStat }) {
       <td style={num}>{r.qrs.toLocaleString()}</td>
       <td style={num}>{r.ctas.toLocaleString()}</td>
       <td style={num}>{r.outs.toLocaleString()}</td>
+      <td style={num}>{r.reach.toLocaleString()}</td>
       <td style={td}>{r.edits > 0 ? when(r.updated_at) : '—'}</td>
       <td style={{ ...td, textAlign: 'right' }}><DeleteCard slug={r.slug} name={r.name} /></td>
     </tr>
@@ -167,12 +168,14 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
             tip="Taps on SHARE THIS INFO — a card owner sending their own card to someone. High here with low views means links are being sent and not opened." />
           <Stat k="Build-your-own taps" v={s.ctas} d={s.views ? `${((s.ctas / s.views) * 100).toFixed(1)}% of views` : 'the growth loop'}
             tip="Taps on the footer button that only visitors see. Each one is a stranger who was handed someone's card and went off to make their own — this is the growth loop, measured." />
+          <Stat k="Texted or emailed you" v={s.reach} d={s.views ? `${((s.reach / s.views) * 100).toFixed(1)}% of views` : 'actual leads'}
+            tip="Visitors who opened a text or an email to ClearPath from a card's footer. It counts the moment their messaging app opened with the message written, not whether they pressed send — so treat it as intent, not inbox." />
           <Stat k="To clearpathautomation.io" v={s.outs} d={s.views ? `${((s.outs / s.views) * 100).toFixed(1)}% of views` : 'the business end'}
             tip="Visitors who tapped through from a card to the main site. The free tool exists partly to produce this number." />
         </div>
 
         <div className="cc-panel cc-tablewrap" style={{ padding: '18px 10px 6px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 900 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 980 }}>
             <thead>
               <tr>
                 <th style={th}><Tip t="The card's public name, its short link, and whether it has a PIN. No PIN means it can only ever be edited from the browser that made it.">Card</Tip></th>
@@ -184,13 +187,14 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
                 <th style={thr}><Tip right t="Times the corner QR was tapped to fill the screen — someone holding their phone up to be scanned.">QR</Tip></th>
                 <th style={thr}><Tip right t="Taps on &ldquo;Build your own card — free&rdquo; in this card's footer. That button is shown to visitors only, so each one is a stranger who was handed this card and went to make their own.">Build</Tip></th>
                 <th style={thr}><Tip right t="Visitors who left this card for clearpathautomation.io. The direct line from the free tool to the business.">ClearPath</Tip></th>
+                <th style={thr}><Tip right t="Visitors who opened a text or an email to ClearPath from this card's footer. Someone starting a conversation, not just reading one — the warmest number on this page.">Contacted</Tip></th>
                 <th style={th}><Tip t="The last time the owner changed anything. A dash means they published it once and never came back.">Last edit</Tip></th>
                 <th style={{ ...th, textAlign: 'right' }}>&nbsp;</th>
               </tr>
             </thead>
             <tbody>
               {s.rows.length === 0 && (
-                <tr><td colSpan={11} style={{ padding: '18px 12px', color: 'var(--cc-dim)' }}>No cards yet.</td></tr>
+                <tr><td colSpan={12} style={{ padding: '18px 12px', color: 'var(--cc-dim)' }}>No cards yet.</td></tr>
               )}
               {s.rows.map(r => <Row key={r.slug} r={r} />)}
             </tbody>

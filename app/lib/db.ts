@@ -337,12 +337,13 @@ export async function bumpViews(slug: string): Promise<void> {
  *   qr     the corner code was enlarged to be scanned
  *   cta    a visitor tapped "Build your own card"
  *   out    a visitor left for clearpathautomation.io
+ *   reach  a visitor opened a text or an email to ClearPath
  *
  * The last two are the funnel: cta says the card is recruiting, out says it
  * is selling. A card that was handed out through a fragment link has no row
  * to attribute these to, so they are recorded against the slug "fragment" -
  * they count in the totals and cannot appear in the per-card table. */
-export const EVENT_KINDS = ['view', 'save', 'share', 'qr', 'cta', 'out'] as const
+export const EVENT_KINDS = ['view', 'save', 'share', 'qr', 'cta', 'out', 'reach'] as const
 export type EventKind = (typeof EVENT_KINDS)[number]
 
 export function isEventKind(v: unknown): v is EventKind {
@@ -375,6 +376,7 @@ export type CardStat = {
   qrs: number
   ctas: number
   outs: number
+  reach: number
 }
 
 export type Stats = {
@@ -387,6 +389,7 @@ export type Stats = {
   qrs: number
   ctas: number
   outs: number
+  reach: number
   rows: CardStat[]
 }
 
@@ -410,7 +413,8 @@ export async function stats(limit = 200): Promise<Stats | null> {
       coalesce(e.shares, 0) as shares,
       coalesce(e.qrs, 0)    as qrs,
       coalesce(e.ctas, 0)   as ctas,
-      coalesce(e.outs, 0)   as outs
+      coalesce(e.outs, 0)   as outs,
+      coalesce(e.reach, 0)  as reach
     from cards c
     left join (
       select slug,
@@ -419,7 +423,8 @@ export async function stats(limit = 200): Promise<Stats | null> {
         count(*) filter (where kind = 'share') as shares,
         count(*) filter (where kind = 'qr')    as qrs,
         count(*) filter (where kind = 'cta')   as ctas,
-        count(*) filter (where kind = 'out')   as outs
+        count(*) filter (where kind = 'out')   as outs,
+        count(*) filter (where kind = 'reach') as reach
       from events group by slug
     ) e on e.slug = c.slug
     order by c.created_at desc
@@ -442,6 +447,7 @@ export async function stats(limit = 200): Promise<Stats | null> {
       qrs: Number(r.qrs ?? 0),
       ctas: Number(r.ctas ?? 0),
       outs: Number(r.outs ?? 0),
+      reach: Number(r.reach ?? 0),
     }
   })
 
@@ -455,7 +461,8 @@ export async function stats(limit = 200): Promise<Stats | null> {
       (select count(*) from events where kind = 'share')                  as shares,
       (select count(*) from events where kind = 'qr')                     as qrs,
       (select count(*) from events where kind = 'cta')                    as ctas,
-      (select count(*) from events where kind = 'out')                    as outs`) as Rows
+      (select count(*) from events where kind = 'out')                    as outs,
+      (select count(*) from events where kind = 'reach')                  as reach`) as Rows
   const t = totals[0] ?? {}
 
   return {
@@ -468,6 +475,7 @@ export async function stats(limit = 200): Promise<Stats | null> {
     qrs: Number(t.qrs ?? 0),
     ctas: Number(t.ctas ?? 0),
     outs: Number(t.outs ?? 0),
+    reach: Number(t.reach ?? 0),
     rows: out,
   }
 }

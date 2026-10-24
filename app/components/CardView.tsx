@@ -20,6 +20,13 @@ import { useFit } from '../lib/useFit'
 import OwnerStrip from './OwnerStrip'
 import UnlockEdit from './UnlockEdit'
 
+/* ClearPath's own contact details, on every card's footer. The sms: route
+ * is a button rather than a link because iOS and Android disagree about the
+ * separator and each rejects the other's. */
+const CP_PHONE = '+12246280264'
+const CP_EMAIL = 'info@clearpathautomation.io'
+const CP_ASK = 'Hi ClearPath — I found you through a ClearPath card. I would like to talk about a project.'
+
 function monogram(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean)
   if (!p.length) return '?'
@@ -112,6 +119,14 @@ export default function CardView({
    * separator in an sms: URL, and both are wrong on the other platform, so
    * this picks per platform. Desktop has no messaging app to open, so it
    * falls back to the share sheet, then to the clipboard. */
+  function textClearPath() {
+    if (preview) return
+    ping(slug ?? 'fragment', 'reach')
+    const ua = navigator.userAgent || ''
+    const ios = /iPad|iPhone|iPod/.test(ua)
+    window.location.href = `sms:${CP_PHONE}${ios ? '&' : '?'}body=${encodeURIComponent(CP_ASK)}`
+  }
+
   async function shareInfo() {
     if (preview) return
     ping(slug ?? 'fragment', 'share')
@@ -167,7 +182,11 @@ export default function CardView({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qr} alt="" />
-          <span>Scan me</span>
+          {/* "Press me", not "scan me": at 74px this is too small to scan
+            * across a table, and pressing it is the action that makes it
+            * scannable. Telling someone to scan a thing they must first
+            * tap is an instruction that fails on the first try. */}
+          <span>Press me</span>
         </button>
       )}
 
@@ -232,15 +251,13 @@ export default function CardView({
         * the business behind the free tool is named. The owner does not
         * need a Build button - they are holding the thing it builds. */}
       <div className="cc-foot">
-        {!owner && (
-          <a
-            className="cc-cta"
-            href="https://card.clearpathautomation.io/new"
-            onClick={preview ? e => e.preventDefault() : () => ping(slug ?? 'fragment', 'cta')}
-          >
-            Build your own card — free
-          </a>
-        )}
+        <a
+          className="cc-cta"
+          href="https://card.clearpathautomation.io/new"
+          onClick={preview ? e => e.preventDefault() : () => ping(slug ?? 'fragment', 'cta')}
+        >
+          Build your own card — free
+        </a>
         <a
           className="cc-footlink"
           href="https://clearpathautomation.io"
@@ -250,6 +267,20 @@ export default function CardView({
         >
           See what else ClearPath can do for you ↗
         </a>
+        {/* A way to start the conversation without leaving for a website
+          * and hunting for a contact form. Both open the reader's own app
+          * with the message half-written; nothing is relayed through this
+          * server, so there is no form here for a bot to find. */}
+        <div className="cc-reach">
+          <button className="cc-reach-btn" type="button" onClick={textClearPath}>Text ClearPath</button>
+          <a
+            className="cc-reach-btn"
+            href={`mailto:${CP_EMAIL}?subject=${encodeURIComponent('Project enquiry')}&body=${encodeURIComponent(CP_ASK)}`}
+            onClick={preview ? e => e.preventDefault() : () => ping(slug ?? 'fragment', 'reach')}
+          >
+            Email ClearPath
+          </a>
+        </div>
         {slug && !owner && !preview && <UnlockEdit slug={slug} />}
       </div>
 
