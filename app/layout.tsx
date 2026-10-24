@@ -41,6 +41,11 @@ window.addEventListener('beforeinstallprompt', function (e) {
 window.addEventListener('appinstalled', function () {
   window.__cpInstallPrompt = null;
 });
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js').catch(function () {});
+  });
+}
 `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -7,7 +7,11 @@ import { ImageResponse } from 'next/og'
  * is silent by design, which is why it survived testing. */
 
 export const runtime = 'nodejs'
-export const dynamic = 'force-static'
+/* NOT force-static. A statically rendered route handler is rendered once and
+ * replayed for every URL that reaches it, query string included - so
+ * ?size=192 was being answered with the 512px image, and the manifest was
+ * declaring a 192px icon that was not one. */
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
   const asked = Number(new URL(req.url).searchParams.get('size') ?? 512)
