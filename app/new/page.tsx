@@ -596,10 +596,12 @@ export default function NewCardPage() {
 
                 {encodedLength > LONG_URL && (
                   <div className="cc-warn" style={{ marginBottom: 16 }}>
-                    This card is {encodedLength.toLocaleString()} characters long because the photo
-                    travels inside the link. It will still work everywhere a link works, but it is
-                    too long for a QR code and some chat apps will visibly wrap it. Removing the
-                    photo fixes both.
+                    Packed into a single self-contained link this card would be{' '}
+                    {encodedLength.toLocaleString()} characters, because the photo travels inside
+                    it. That only bites if storage is unreachable when you publish — then you get
+                    that long link instead of a short one, and no QR code can hold it. Published
+                    normally you get the short link above and a QR that works. Removing the photo
+                    makes the fallback usable too.
                   </div>
                 )}
 

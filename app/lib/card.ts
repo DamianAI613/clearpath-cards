@@ -179,10 +179,15 @@ const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30})[a-z0-9]$/
 
 /* Nothing here collides with a route - cards live under /s/ - but a card at
  * /s/admin or /s/clearpath is a phishing surface, and "support" in a URL is
- * worth more to someone lying than to someone honest. */
+ * worth more to someone lying than to someone honest.
+ *
+ * Only the brand and the service words. A personal name is not reserved:
+ * blocking those would be deciding on someone's behalf which names they are
+ * allowed to be, and the admin delete is the answer to a name taken in bad
+ * faith. */
 const RESERVED_SLUGS = new Set([
   'about', 'admin', 'api', 'app', 'apple-icon', 'app-icon', 'billing', 'c', 'card', 'cards',
-  'clearpath', 'clearpathautomation', 'contact', 'damian', 'favicon', 'help', 'icon', 'login',
+  'clearpath', 'clearpathautomation', 'contact', 'favicon', 'help', 'icon', 'login',
   'logout', 'manifest', 'new', 'owner', 'pay', 'privacy', 'qr', 'robots', 's', 'security',
   'settings', 'signup', 'sitemap', 'support', 'terms', 'unlock', 'www',
 ])
