@@ -15,7 +15,19 @@
  * "is this link available" or "does this PIN match" would be worse than no
  * answer at all. */
 
-const CACHE = 'clearpath-cards-v1'
+const CACHE = 'clearpath-cards-v2'
+
+/* Network-first has one failure worse than being offline: the connection
+ * that is technically alive and effectively dead. A conference hall, a lift,
+ * one bar of signal - the request does not fail, it hangs, and the browser
+ * will wait tens of seconds before giving up. Meanwhile a perfectly good
+ * copy of the card is sitting in the cache.
+ *
+ * So the network gets a head start and then loses. If it has not answered in
+ * this many milliseconds AND a cached copy exists, the cached one is served
+ * immediately while the request keeps running to refresh the cache. No copy
+ * cached yet means there is nothing better to offer, so that case waits. */
+const SLOW_MS = 2500
 
 self.addEventListener('install', () => self.skipWaiting())
 
@@ -36,20 +48,41 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return
   if (url.pathname.startsWith('/api/')) return
 
+  /* Only keep what is worth having offline: the page itself and the build's
+   * immutable assets. A 404 or a 500 is never cached. */
+  const keep = req.mode === 'navigate' || url.pathname.startsWith('/_next/static')
+
   event.respondWith((async () => {
-    try {
-      const fresh = await fetch(req)
-      /* Only keep what is worth having offline: the page itself and the
-       * build's immutable assets. A 404 or a 500 is never cached. */
-      const keep = req.mode === 'navigate' || url.pathname.startsWith('/_next/static')
+    const cached = await caches.match(req)
+
+    const network = fetch(req).then(async fresh => {
       if (keep && fresh && fresh.ok) {
         const cache = await caches.open(CACHE)
-        cache.put(req, fresh.clone())
+        await cache.put(req, fresh.clone())
       }
       return fresh
+    })
+    /* The race below can leave this promise rejecting with nobody
+     * listening, which logs an unhandled rejection in every console. */
+    network.catch(() => {})
+
+    if (cached) {
+      try {
+        return await Promise.race([
+          network,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('slow')), SLOW_MS)),
+        ])
+      } catch {
+        /* Slow or broken, same answer: the copy we already have. The
+         * request carries on in the background and refreshes the cache for
+         * next time. */
+        return cached
+      }
+    }
+
+    try {
+      return await network
     } catch {
-      const hit = await caches.match(req)
-      if (hit) return hit
       /* Offline and never seen: say so in the card's own voice rather than
        * handing over the browser's dinosaur. */
       if (req.mode === 'navigate') {
