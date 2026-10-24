@@ -29,6 +29,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       /* Per-card, so Add to Home Screen installs THIS card rather than the
        * landing page the root manifest points at. */
       manifest: `/s/${slug}/manifest.webmanifest`,
+      /* And a per-card favicon, which matters more than it sounds. When
+       * Chrome cannot install a page it quietly makes a bookmark shortcut
+       * instead, and a shortcut takes its picture from the favicon - which
+       * was the ClearPath mark, so someone's business card landed on their
+       * home screen wearing another company's logo. Now the fallback is at
+       * least their own initials. */
+      icons: {
+        icon: [{ url: `/s/${slug}/app-icon?size=192`, sizes: '192x192', type: 'image/png' }],
+      },
       openGraph: {
         title: name,
         description: sub || c.tagline || '',
