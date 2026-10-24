@@ -2,8 +2,9 @@
  *
  * The root manifest cannot do this job: its start_url is the landing page, so
  * an icon installed from a card would open the marketing site. Scoping a
- * manifest to /s/<slug> and starting it at that card's QR is what makes the
- * installed icon behave like the owner's own app. */
+ * manifest to /s/<slug> and starting it there is what makes the installed
+ * icon behave like the owner's own app - it opens their card, with its own
+ * QR in the corner for the times they are being scanned. */
 
 import { readCard } from '../../../lib/db'
 
@@ -23,9 +24,13 @@ export async function GET(_req: Request, { params }: Ctx) {
 
   const manifest = {
     name: `${name} — card`,
-    short_name: name.split(/\s+/)[0].slice(0, 12) || 'Card',
+    /* Every card installs under the same home-screen name on purpose. The
+     * icon already carries the owner's initials, and a predictable label is
+     * what makes "search your phone for My Card" a true instruction for
+     * everyone rather than one that only works for some people. */
+    short_name: 'My Card',
     description: 'Your digital business card, one tap from the home screen.',
-    start_url: `/s/${slug}/qr`,
+    start_url: `/s/${slug}`,
     scope: `/s/${slug}`,
     display: 'standalone',
     orientation: 'portrait',

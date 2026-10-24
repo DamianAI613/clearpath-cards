@@ -27,6 +27,10 @@ export default function OwnerStrip({
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [installed, setInstalled] = useState(false)
   const [showHowTo, setShowHowTo] = useState(false)
+  /* Installing does not necessarily put the icon where you are looking.
+   * Both platforms may drop it on a later home-screen page or straight into
+   * the App Library, so the one reliable way to find it is to search. */
+  const [justInstalled, setJustInstalled] = useState(false)
 
   useEffect(() => {
     /* Already running from the home screen - there is nothing to add. */
@@ -37,7 +41,7 @@ export default function OwnerStrip({
       setDeferred(e as BeforeInstallPromptEvent)
     }
     window.addEventListener('beforeinstallprompt', onPrompt)
-    window.addEventListener('appinstalled', () => setInstalled(true))
+    window.addEventListener('appinstalled', () => { setInstalled(true); setJustInstalled(true) })
     return () => window.removeEventListener('beforeinstallprompt', onPrompt)
   }, [])
 
@@ -48,7 +52,7 @@ export default function OwnerStrip({
     if (deferred) {
       await deferred.prompt()
       const { outcome } = await deferred.userChoice
-      if (outcome === 'accepted') setInstalled(true)
+      if (outcome === 'accepted') { setInstalled(true); setJustInstalled(true) }
       setDeferred(null)
       return
     }
@@ -72,7 +76,16 @@ export default function OwnerStrip({
       {showHowTo && (
         <p className="cc-owner-howto">
           On iPhone this is a Safari action, not something a page can trigger:
-          tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
+          tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. It saves as{' '}
+          <strong>My Card</strong> — if it is not on the page you are looking at, swipe down on
+          the home screen and search for that name.
+        </p>
+      )}
+      {justInstalled && (
+        <p className="cc-owner-howto">
+          Added as <strong>My Card</strong>. Phones often put a new icon on a later home-screen
+          page or straight into the App Library, so if it is not where you expect, swipe down and
+          search <strong>My Card</strong>. Drag it where you want it from there.
         </p>
       )}
     </div>

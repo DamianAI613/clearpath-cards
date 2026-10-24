@@ -3,8 +3,11 @@
  * icon that opens the marketing site instead of the card would be exactly
  * the wrong result.
  *
- * start_url points at /damian/qr deliberately: the reason to put this on a
- * home screen is to show someone a QR within a couple of seconds. */
+ * start_url is the card itself. It pointed at the QR for a while, on the
+ * theory that the reason to install it is to be scanned - but opening to a
+ * black-and-white square and no card is disorienting, and the card's own
+ * corner QR is one tap from the same thing. Open to the card; keep the QR
+ * one tap away. */
 
 export const dynamic = 'force-static'
 
@@ -14,7 +17,7 @@ export function GET() {
       name: 'Damian Wroblewski — card',
       short_name: 'My Card',
       description: 'Digital business card',
-      start_url: '/damian/qr',
+      start_url: '/damian',
       scope: '/damian',
       display: 'standalone',
       background_color: '#FFFFFF',
