@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import QR from 'qrcode'
-import CardView from '../components/CardView'
+import DamianCard from './DamianCard'
 import { CARD } from './card'
 
 /* Damian's own card.
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
  * code is painted in the first frame instead of after hydration. */
 const CARD_URL = 'https://card.clearpathautomation.io/damian'
 
-export default async function DamianCard() {
+export default async function DamianCardPage() {
   const qr = await QR.toDataURL(CARD_URL, {
     errorCorrectionLevel: 'M',
     margin: 1,
@@ -39,7 +39,7 @@ export default async function DamianCard() {
 
   return (
     <main className="cc-stage">
-      <CardView card={CARD} qr={qr} owner qrHref="/damian/qr" />
+      <DamianCard qr={qr} />
     </main>
   )
 }

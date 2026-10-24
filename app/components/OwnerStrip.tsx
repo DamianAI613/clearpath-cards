@@ -18,18 +18,15 @@ type BeforeInstallPromptEvent = Event & {
 export default function OwnerStrip({
   editHref,
   qrHref,
-  appUrl = 'https://card.clearpathautomation.io',
 }: {
   /** Omitted when there is nothing editable (a card defined in source). */
   editHref?: string
   /** A dedicated full-screen QR page, when the card has one. */
   qrHref?: string
-  appUrl?: string
 }) {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [installed, setInstalled] = useState(false)
   const [showHowTo, setShowHowTo] = useState(false)
-  const [shared, setShared] = useState('')
 
   useEffect(() => {
     /* Already running from the home screen - there is nothing to add. */
@@ -58,28 +55,12 @@ export default function OwnerStrip({
     setShowHowTo(v => !v)
   }
 
-  async function shareApp() {
-    const data = {
-      title: 'ClearPath Cards',
-      text: 'Free digital business card — one link, a QR code, no account.',
-      url: appUrl,
-    }
-    if (typeof navigator.share === 'function') {
-      try { await navigator.share(data); return } catch { /* dismissed */ }
-    }
-    try {
-      await navigator.clipboard.writeText(appUrl)
-      setShared('Link copied')
-      setTimeout(() => setShared(''), 1800)
-    } catch { /* permission-gated */ }
-  }
-
   return (
     <div className="cc-owner">
       <span className="cc-owner-label">Yours</span>
       <div className="cc-owner-row">
         {editHref && (
-          <a className="cc-chip" href={editHref}>Edit</a>
+          <a className="cc-chip cc-chip-hot" href={editHref}>Edit card</a>
         )}
         {qrHref && (
           <a className="cc-chip" href={qrHref}>Show QR</a>
@@ -87,9 +68,6 @@ export default function OwnerStrip({
         {!installed && (
           <button className="cc-chip" onClick={install} type="button">Add to Home Screen</button>
         )}
-        <button className="cc-chip" onClick={shareApp} type="button">
-          {shared || 'Share the app'}
-        </button>
       </div>
       {showHowTo && (
         <p className="cc-owner-howto">

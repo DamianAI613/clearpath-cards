@@ -215,13 +215,41 @@ button { font-family: inherit; }
 .cc-qrbig-cap { margin: 0; color: #111827; font-size: 0.98rem; font-weight: 700; text-align: center; }
 .cc-qrbig-sub { margin: 0; color: #6B7280; font-size: 0.78rem; text-align: center; }
 
+/* -- The footer, which is also the funnel ------------------------------- */
+
 .cc-foot {
   border-top: 1px solid var(--cc-line);
-  padding: 14px 24px; text-align: center;
-  font-size: 0.78rem; color: var(--cc-faint);
+  padding: 12px 20px 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  text-align: center;
 }
-.cc-foot a { color: var(--cc-dim); font-weight: 650; }
-.cc-foot a:hover { color: var(--cc-accent-text); }
+.cc-cta {
+  width: 100%; padding: 10px 14px; border-radius: 11px;
+  border: 1px solid var(--cc-accent-text); background: var(--cc-accent-wash);
+  color: var(--cc-head); font-size: 0.84rem; font-weight: 700;
+  transition: background 0.15s ease;
+}
+.cc-cta:hover { background: color-mix(in srgb, var(--cc-accent) 32%, transparent); }
+.cc-footlink { font-size: 0.78rem; color: var(--cc-accent-text); font-weight: 650; }
+.cc-footlink:hover { color: var(--cc-head); }
+
+/* Deliberately the quietest thing on the card: it is addressed to one person
+ * in a thousand, and it must not read as an invitation to strangers. */
+.cc-unlock {
+  background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit;
+  font-size: 0.72rem; color: var(--cc-faint);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.cc-unlock:hover { color: var(--cc-dim); }
+.cc-unlock-form { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.cc-pin {
+  width: 96px; padding: 7px 10px; border-radius: 9px;
+  background: var(--cc-panel); border: 1px solid var(--cc-line);
+  color: var(--cc-text); font-family: inherit; font-size: 1rem;
+  letter-spacing: 0.3em; text-align: center;
+}
+.cc-pin:focus { outline: none; border-color: var(--cc-accent-text); }
+.cc-unlock-msg { width: 100%; margin: 0; font-size: 0.74rem; color: var(--cc-muted); line-height: 1.5; }
 
 /* -- Generic page chrome ------------------------------------------------ */
 
@@ -332,6 +360,7 @@ button { font-family: inherit; }
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 .cc-chip:hover { color: var(--cc-head); border-color: var(--cc-accent-text); background: var(--cc-soft); }
+.cc-chip-hot { color: var(--cc-head); border-color: var(--cc-accent-text); background: var(--cc-accent-wash); }
 .cc-owner-howto { margin: 0; font-size: 0.79rem; color: var(--cc-muted); line-height: 1.6; }
 .cc-owner-howto strong { color: var(--cc-text); }
 
@@ -349,5 +378,6 @@ button { font-family: inherit; }
   .cc-share { padding: 10px 18px; }
   .cc-more { padding-bottom: 10px; }
   .cc-owner { padding: 10px 22px 12px; }
-  .cc-foot { padding: 12px 24px; }
+  .cc-foot { padding: 10px 20px 12px; gap: 7px; }
+  .cc-cta { padding: 9px 14px; }
 }

@@ -20,5 +20,14 @@ export default function HostedCard({ card, slug }: { card: Card; slug: string })
     if (token) setEditHref(`${window.location.origin}/new#edit=${slug}:${token}`)
   }, [slug])
 
-  return <CardView card={card} qr={qr} owner={Boolean(editHref)} editHref={editHref} />
+  return (
+    <CardView
+      card={card}
+      slug={slug}
+      qr={qr}
+      owner={Boolean(editHref)}
+      editHref={editHref}
+      qrHref={`/s/${slug}/qr`}
+    />
+  )
 }

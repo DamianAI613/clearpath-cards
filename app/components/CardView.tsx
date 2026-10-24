@@ -15,7 +15,9 @@ import {
   type Card, type CardLink, DEFAULT_ACCENT, LINK_META,
   hrefFor, displayFor, toVCard, vCardFilename,
 } from '../lib/card'
+import { ping } from '../lib/track'
 import OwnerStrip from './OwnerStrip'
+import UnlockEdit from './UnlockEdit'
 
 function monogram(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean)
@@ -60,6 +62,7 @@ export default function CardView({
   editHref,
   qrHref,
   owner = false,
+  slug,
 }: {
   card: Card
   /** Preview suppresses the real download/copy side effects in the builder. */
@@ -72,6 +75,9 @@ export default function CardView({
   qrHref?: string
   /** True only when this browser can prove it owns the card. */
   owner?: boolean
+  /** Present for a stored card. Enables counting and PIN unlock; a fragment
+   * card has no row, so neither applies. */
+  slug?: string
 }) {
   const [note, setNote] = useState('')
   const [showQr, setShowQr] = useState(false)
@@ -80,6 +86,7 @@ export default function CardView({
 
   function saveContact() {
     if (preview) return
+    ping(slug, 'save')
     const blob = new Blob([toVCard(card)], { type: 'text/vcard;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -102,6 +109,7 @@ export default function CardView({
    * falls back to the share sheet, then to the clipboard. */
   async function shareInfo() {
     if (preview) return
+    ping(slug, 'share')
     const url = window.location.href
     const who = card.name.trim()
     const body = who
@@ -140,7 +148,7 @@ export default function CardView({
         <button
           className="cc-qrmini"
           type="button"
-          onClick={() => setShowQr(true)}
+          onClick={() => { ping(slug, 'qr'); setShowQr(true) }}
           aria-label="Show a larger QR code for this card"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -194,12 +202,30 @@ export default function CardView({
 
       {owner && !preview && <OwnerStrip editHref={editHref} qrHref={qrHref} />}
 
+      {/* The footer earns its height twice: it is how a card someone was
+        * handed turns into a card someone makes, and it is the only place
+        * the business behind the free tool is named. The owner does not
+        * need a Build button - they are holding the thing it builds. */}
       <div className="cc-foot">
-        Built with{' '}
-        <a href="https://card.clearpathautomation.io" target="_blank" rel="noopener noreferrer">
-          ClearPath Cards
-        </a>{' '}
-        — free
+        {!owner && (
+          <a
+            className="cc-cta"
+            href="https://card.clearpathautomation.io/new"
+            onClick={preview ? e => e.preventDefault() : undefined}
+          >
+            Build your own card — free
+          </a>
+        )}
+        <a
+          className="cc-footlink"
+          href="https://clearpathautomation.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={preview ? e => e.preventDefault() : undefined}
+        >
+          See what else ClearPath can do for you ↗
+        </a>
+        {slug && !owner && !preview && <UnlockEdit slug={slug} />}
       </div>
 
       {showQr && qr && (

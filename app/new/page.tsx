@@ -61,6 +61,10 @@ export default function NewCardPage() {
   const [publishing, setPublishing] = useState(false)
   const [loadInput, setLoadInput] = useState('')
   const [loadMsg, setLoadMsg] = useState('')
+  /* Four digits, chosen at publish time, that let the owner edit from a phone
+   * that has never seen this browser's localStorage. It is sent once, hashed
+   * server-side, and never stored here. */
+  const [pin, setPin] = useState('')
 
   /* On mount: an edit link wins over a saved draft, then fall back to the
    * draft. The edit token travels in the fragment rather than the query
@@ -104,7 +108,10 @@ export default function NewCardPage() {
   }, [])
 
   const encodedLength = useMemo(() => encodeCard(card).length, [card])
-  const ready = card.name.trim().length > 0
+  const pinOk = /^\d{4}$/.test(pin)
+  /* A PIN is required for a new card and meaningless for an edit, where the
+   * card already has one and the token in hand is the proof. */
+  const ready = card.name.trim().length > 0 && (Boolean(editing) || pinOk)
 
   async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -170,7 +177,7 @@ export default function NewCardPage() {
         const r = await fetch('/api/cards', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(card),
+          body: JSON.stringify({ card, pin: pinOk ? pin : undefined }),
         })
         if (r.ok) {
           const { slug, token } = await r.json()
@@ -284,7 +291,7 @@ export default function NewCardPage() {
   }
 
   function startOver() {
-    setCard(EMPTY_CARD); setPub(null); setQr(null); setStep(0); setEditing(null); setLoadMsg('')
+    setCard(EMPTY_CARD); setPub(null); setQr(null); setStep(0); setEditing(null); setLoadMsg(''); setPin('')
     if (window.location.hash) history.replaceState(null, '', window.location.pathname)
     try { localStorage.removeItem(DRAFT_KEY) } catch { /* private mode */ }
   }
@@ -475,7 +482,34 @@ export default function NewCardPage() {
                   </div>
                 </div>
 
-                {!ready && <div className="cc-warn" style={{ marginBottom: 16 }}>Add your name on step 1 before publishing.</div>}
+                {!editing && (
+                  <div className="cc-field" style={{ marginTop: 22 }}>
+                    <label className="cc-label" htmlFor="f-pin">Choose a 4-digit PIN</label>
+                    <input
+                      id="f-pin"
+                      className="cc-input"
+                      value={pin}
+                      onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="0000"
+                      style={{ maxWidth: 150, letterSpacing: '0.35em', fontSize: '1.1rem', textAlign: 'center' }}
+                    />
+                    <p className="cc-hint">
+                      This is how you edit your card later from a phone that has never opened this
+                      page — open the card and tap <strong>Is this your card?</strong> at the bottom.
+                      Without it, editing works only in this browser. Pick something you will not
+                      forget: nobody can look it up or reset it for you.
+                    </p>
+                  </div>
+                )}
+
+                {card.name.trim().length === 0 && (
+                  <div className="cc-warn" style={{ marginBottom: 16 }}>Add your name on step 1 before publishing.</div>
+                )}
+                {card.name.trim().length > 0 && !ready && (
+                  <div className="cc-warn" style={{ marginBottom: 16 }}>Enter four digits for your PIN before publishing.</div>
+                )}
 
                 {encodedLength > LONG_URL && (
                   <div className="cc-warn" style={{ marginBottom: 16 }}>
@@ -515,6 +549,14 @@ export default function NewCardPage() {
                       <a className="cc-btn-ghost" href={pub.url} target="_blank" rel="noopener noreferrer">Open card ↗</a>
                     </div>
 
+                    {pub.stored && !pub.updated && pinOk && (
+                      <div className="cc-ok" style={{ marginTop: 16 }}>
+                        Your PIN is <strong>{pin}</strong>. Write it down. To edit from any phone,
+                        open your card and tap <strong>Is this your card? Unlock editing</strong> at
+                        the bottom. Five wrong tries locks the card for fifteen minutes.
+                      </div>
+                    )}
+
                     {pub.editUrl && (
                       <div style={{ marginTop: 18 }}>
                         <label className="cc-label" htmlFor="f-edit">Private edit link — save this</label>
@@ -523,7 +565,8 @@ export default function NewCardPage() {
                         <p className="cc-hint">
                           Anyone with this link can rewrite your card, so do not share it. It is
                           stored as a one-way hash on our side, which means we cannot send it to
-                          you again if you lose it.
+                          you again if you lose it. Note that unlocking with your PIN on another
+                          phone issues a new key and retires this link.
                         </p>
                       </div>
                     )}
