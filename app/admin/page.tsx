@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { adminConfigured, isAdmin } from '../lib/admin'
 import { db, stats, type CardStat } from '../lib/db'
+import DeleteCard from './DeleteCard'
 
 /* Is anyone actually using this?
  *
@@ -82,7 +83,10 @@ function Row({ r }: { r: CardStat }) {
       <td style={num}>{r.saves.toLocaleString()}</td>
       <td style={num}>{r.shares.toLocaleString()}</td>
       <td style={num}>{r.qrs.toLocaleString()}</td>
+      <td style={num}>{r.ctas.toLocaleString()}</td>
+      <td style={num}>{r.outs.toLocaleString()}</td>
       <td style={td}>{r.edits > 0 ? when(r.updated_at) : '—'}</td>
+      <td style={{ ...td, textAlign: 'right' }}><DeleteCard slug={r.slug} name={r.name} /></td>
     </tr>
   )
 }
@@ -147,10 +151,13 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
           <Stat k="Cards edited" v={s.edited} d={s.cards ? `${Math.round((s.edited / s.cards) * 100)}% came back` : 'none yet'} />
           <Stat k="Card views" v={s.views} d="all cards, all time" />
           <Stat k="Contacts saved" v={s.saves} d="the tap that matters" />
+          <Stat k="Cards shared" v={s.shares} d="owners handing theirs out" />
+          <Stat k="Build-your-own taps" v={s.ctas} d={s.views ? `${((s.ctas / s.views) * 100).toFixed(1)}% of views` : 'the growth loop'} />
+          <Stat k="To clearpathautomation.io" v={s.outs} d={s.views ? `${((s.outs / s.views) * 100).toFixed(1)}% of views` : 'the business end'} />
         </div>
 
         <div className="cc-panel" style={{ padding: '18px 10px 6px', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 680 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 900 }}>
             <thead>
               <tr>
                 <th style={th}>Card</th>
@@ -160,12 +167,15 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
                 <th style={thr}>Saves</th>
                 <th style={thr}>Shares</th>
                 <th style={thr}>QR</th>
+                <th style={thr}>Build</th>
+                <th style={thr}>ClearPath</th>
                 <th style={th}>Last edit</th>
+                <th style={{ ...th, textAlign: 'right' }}>&nbsp;</th>
               </tr>
             </thead>
             <tbody>
               {s.rows.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: '18px 12px', color: 'var(--cc-dim)' }}>No cards yet.</td></tr>
+                <tr><td colSpan={11} style={{ padding: '18px 12px', color: 'var(--cc-dim)' }}>No cards yet.</td></tr>
               )}
               {s.rows.map(r => <Row key={r.slug} r={r} />)}
             </tbody>
@@ -173,7 +183,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
         </div>
 
         <p className="cc-hint" style={{ marginTop: 18, maxWidth: 680 }}>
-          Owner phone is the number the card&apos;s own creator put on their card — it is already
+          <strong>Build</strong> is taps on &ldquo;Build your own card&rdquo;; <strong>ClearPath</strong>
+          is visitors leaving for clearpathautomation.io. Both are counted on cards handed out through
+          a short link; a card shared as a long self-contained link has no row to attribute them to, so
+          those taps reach the totals above but not this table.
+          {' '}Owner phone is the number the card&apos;s own creator put on their card — it is already
           public on that card. Nothing here identifies a <em>visitor</em>: no browser can hand a
           page someone&apos;s phone number, and nothing is logged about who viewed what. Counts come
           from an unauthenticated endpoint, so treat them as a usage signal, not an audited figure.

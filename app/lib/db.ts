@@ -263,7 +263,25 @@ export async function deleteCard(slug: string, token: string): Promise<boolean> 
   if (!rows.length) return false
   if (!sameHash(rows[0].token_hash as string, await hashToken(token))) return false
   await sql`delete from cards where slug = ${slug}`
+  /* Their card, their counters. Leaving the events behind would keep a
+   * record of a person who asked to stop existing here, and would make the
+   * totals disagree with the table forever. */
+  await sql`delete from events where slug = ${slug}`
   return true
+}
+
+/* The same deletion, by the one person who runs the service rather than by
+ * the person who owns the card. This exists because a free public card tool
+ * will eventually host something abusive, and the alternative is SQL typed
+ * into a database console at speed. It is reachable only behind the admin
+ * password and it asks before it fires. */
+export async function adminDeleteCard(slug: string): Promise<boolean> {
+  const sql = db()
+  if (!sql) return false
+  await ensureSchema(sql)
+  const rows = (await sql`delete from cards where slug = ${slug} returning slug`) as Rows
+  await sql`delete from events where slug = ${slug}`
+  return rows.length > 0
 }
 
 /* Best-effort: a view that fails to count must never fail the page. */
@@ -277,10 +295,22 @@ export async function bumpViews(slug: string): Promise<void> {
 
 /* -- Counting what happens ----------------------------------------------- */
 
-/* The four moments worth knowing about. Anything not on this list is not
- * recorded, which is also the validation: the kind comes from a public
- * endpoint, so it is matched against this set rather than trusted. */
-export const EVENT_KINDS = ['view', 'save', 'share', 'qr'] as const
+/* The moments worth knowing about, and the only strings this app will store
+ * in the kind column - the kind arrives from a public endpoint, so it is
+ * matched against this set rather than trusted.
+ *
+ *   view   someone opened a card
+ *   save   they tapped Save to contacts
+ *   share  the card's owner sent it to someone
+ *   qr     the corner code was enlarged to be scanned
+ *   cta    a visitor tapped "Build your own card"
+ *   out    a visitor left for clearpathautomation.io
+ *
+ * The last two are the funnel: cta says the card is recruiting, out says it
+ * is selling. A card that was handed out through a fragment link has no row
+ * to attribute these to, so they are recorded against the slug "fragment" -
+ * they count in the totals and cannot appear in the per-card table. */
+export const EVENT_KINDS = ['view', 'save', 'share', 'qr', 'cta', 'out'] as const
 export type EventKind = (typeof EVENT_KINDS)[number]
 
 export function isEventKind(v: unknown): v is EventKind {
@@ -311,6 +341,8 @@ export type CardStat = {
   saves: number
   shares: number
   qrs: number
+  ctas: number
+  outs: number
 }
 
 export type Stats = {
@@ -320,6 +352,9 @@ export type Stats = {
   views: number
   saves: number
   shares: number
+  qrs: number
+  ctas: number
+  outs: number
   rows: CardStat[]
 }
 
@@ -338,16 +373,21 @@ export async function stats(limit = 200): Promise<Stats | null> {
       c.updated_at,
       c.edits,
       (c.pin_hash is not null) as has_pin,
-      c.views,
+      coalesce(e.views, 0)  as views,
       coalesce(e.saves, 0)  as saves,
       coalesce(e.shares, 0) as shares,
-      coalesce(e.qrs, 0)    as qrs
+      coalesce(e.qrs, 0)    as qrs,
+      coalesce(e.ctas, 0)   as ctas,
+      coalesce(e.outs, 0)   as outs
     from cards c
     left join (
       select slug,
+        count(*) filter (where kind = 'view')  as views,
         count(*) filter (where kind = 'save')  as saves,
         count(*) filter (where kind = 'share') as shares,
-        count(*) filter (where kind = 'qr')    as qrs
+        count(*) filter (where kind = 'qr')    as qrs,
+        count(*) filter (where kind = 'cta')   as ctas,
+        count(*) filter (where kind = 'out')   as outs
       from events group by slug
     ) e on e.slug = c.slug
     order by c.created_at desc
@@ -368,6 +408,8 @@ export async function stats(limit = 200): Promise<Stats | null> {
       saves: Number(r.saves ?? 0),
       shares: Number(r.shares ?? 0),
       qrs: Number(r.qrs ?? 0),
+      ctas: Number(r.ctas ?? 0),
+      outs: Number(r.outs ?? 0),
     }
   })
 
@@ -376,9 +418,12 @@ export async function stats(limit = 200): Promise<Stats | null> {
       (select count(*) from cards)                                        as cards,
       (select count(*) from cards where created_at > now() - interval '7 days') as last7,
       (select count(*) from cards where edits > 0)                        as edited,
-      (select coalesce(sum(views), 0) from cards)                         as views,
+      (select count(*) from events where kind = 'view')                   as views,
       (select count(*) from events where kind = 'save')                   as saves,
-      (select count(*) from events where kind = 'share')                  as shares`) as Rows
+      (select count(*) from events where kind = 'share')                  as shares,
+      (select count(*) from events where kind = 'qr')                     as qrs,
+      (select count(*) from events where kind = 'cta')                    as ctas,
+      (select count(*) from events where kind = 'out')                    as outs`) as Rows
   const t = totals[0] ?? {}
 
   return {
@@ -388,6 +433,9 @@ export async function stats(limit = 200): Promise<Stats | null> {
     views: Number(t.views ?? 0),
     saves: Number(t.saves ?? 0),
     shares: Number(t.shares ?? 0),
+    qrs: Number(t.qrs ?? 0),
+    ctas: Number(t.ctas ?? 0),
+    outs: Number(t.outs ?? 0),
     rows: out,
   }
 }

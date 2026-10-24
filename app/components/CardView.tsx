@@ -86,7 +86,7 @@ export default function CardView({
 
   function saveContact() {
     if (preview) return
-    ping(slug, 'save')
+    ping(slug ?? 'fragment', 'save')
     const blob = new Blob([toVCard(card)], { type: 'text/vcard;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -109,7 +109,7 @@ export default function CardView({
    * falls back to the share sheet, then to the clipboard. */
   async function shareInfo() {
     if (preview) return
-    ping(slug, 'share')
+    ping(slug ?? 'fragment', 'share')
     const url = window.location.href
     const who = card.name.trim()
     const body = who
@@ -148,7 +148,7 @@ export default function CardView({
         <button
           className="cc-qrmini"
           type="button"
-          onClick={() => { ping(slug, 'qr'); setShowQr(true) }}
+          onClick={() => { ping(slug ?? 'fragment', 'qr'); setShowQr(true) }}
           aria-label="Show a larger QR code for this card"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -211,7 +211,7 @@ export default function CardView({
           <a
             className="cc-cta"
             href="https://card.clearpathautomation.io/new"
-            onClick={preview ? e => e.preventDefault() : undefined}
+            onClick={preview ? e => e.preventDefault() : () => ping(slug ?? 'fragment', 'cta')}
           >
             Build your own card — free
           </a>
@@ -221,7 +221,7 @@ export default function CardView({
           href="https://clearpathautomation.io"
           target="_blank"
           rel="noopener noreferrer"
-          onClick={preview ? e => e.preventDefault() : undefined}
+          onClick={preview ? e => e.preventDefault() : () => ping(slug ?? 'fragment', 'out')}
         >
           See what else ClearPath can do for you ↗
         </a>
