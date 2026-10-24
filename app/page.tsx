@@ -38,7 +38,7 @@ export default function Home() {
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Link className="cc-btn" href="/new">Make my card — free</Link>
-            <Link className="cc-btn-ghost" href="/damian">See a real one</Link>
+            <Link className="cc-btn-ghost" href="/s/damian">See a real one</Link>
           </div>
         </div>
       </section>
