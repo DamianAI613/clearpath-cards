@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server'
 import { isCard } from '../../lib/card'
-import { createCard, db } from '../../lib/db'
+import { createCard, db, isPin } from '../../lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,17 +19,28 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'bad_json' }, { status: 400 })
   }
-  if (!isCard(body)) {
+
+  /* Two accepted shapes. The original was the bare card; the PIN arrived
+   * later and travels beside it rather than inside it, because it is a
+   * credential and must never end up in the card's own JSON. */
+  const wrapped = body && typeof body === 'object' && 'card' in body
+    ? (body as { card: unknown; pin?: unknown })
+    : { card: body, pin: undefined }
+
+  if (!isCard(wrapped.card)) {
     return NextResponse.json({ error: 'not_a_card' }, { status: 400 })
+  }
+  if (wrapped.pin !== undefined && !isPin(wrapped.pin)) {
+    return NextResponse.json({ error: 'bad_pin' }, { status: 400 })
   }
   /* A card is small. Anything large is either a mistake or an attempt to use
    * the table as free storage. */
-  if (JSON.stringify(body).length > 400_000) {
+  if (JSON.stringify(wrapped.card).length > 400_000) {
     return NextResponse.json({ error: 'too_large' }, { status: 413 })
   }
 
   try {
-    const made = await createCard(body)
+    const made = await createCard(wrapped.card, isPin(wrapped.pin) ? wrapped.pin : undefined)
     if (!made) return NextResponse.json({ error: 'could_not_allocate' }, { status: 500 })
     return NextResponse.json(made, { status: 201 })
   } catch (e) {

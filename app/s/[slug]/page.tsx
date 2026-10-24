@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { after } from 'next/server'
-import { bumpViews, readCard } from '../../lib/db'
+import { bumpViews, readCard, recordEvent } from '../../lib/db'
 import HostedCard from '../../components/HostedCard'
 
 /* A stored card, served from its own URL.
@@ -26,6 +26,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: name,
       description: sub || c.tagline || `${name}'s card`,
+      /* Per-card, so Add to Home Screen installs THIS card rather than the
+       * landing page the root manifest points at. */
+      manifest: `/s/${slug}/manifest.webmanifest`,
       openGraph: {
         title: name,
         description: sub || c.tagline || '',
@@ -63,7 +66,7 @@ export default async function StoredCard({ params }: Props) {
 
   if (!row) notFound()
 
-  after(() => bumpViews(slug))
+  after(() => Promise.all([bumpViews(slug), recordEvent(slug, 'view')]))
 
   return (
     <main className="cc-stage">
