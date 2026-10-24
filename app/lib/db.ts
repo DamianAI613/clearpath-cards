@@ -11,7 +11,7 @@
  */
 
 import { neon } from '@neondatabase/serverless'
-import { type Card, isCard } from './card'
+import { type Card, isCard, slugShape } from './card'
 
 export type Row = {
   slug: string
@@ -88,6 +88,14 @@ function randomString(len: number, alphabet: string): string {
 }
 
 export const newSlug = () => randomString(8, ALPHABET)
+
+export async function slugTaken(slug: string): Promise<boolean> {
+  const sql = db()
+  if (!sql) return false
+  await ensureSchema(sql)
+  const rows = (await sql`select 1 from cards where slug = ${slug}`) as Rows
+  return rows.length > 0
+}
 
 /* The edit token is the only thing standing between a card and anyone who
  * wants to rewrite it, so it is long and never stored in the clear. */
@@ -205,27 +213,51 @@ export async function unlockCard(slug: string, pin: string): Promise<UnlockResul
 
 /* -- Operations ---------------------------------------------------------- */
 
-export async function createCard(card: Card, pin?: string): Promise<{ slug: string; token: string } | null> {
+export type CreateResult =
+  | { ok: true; slug: string; token: string }
+  | { ok: false; reason: 'taken' | 'bad_slug' | 'reserved' | 'no_slug_available' }
+
+export async function createCard(
+  card: Card,
+  opts: { pin?: string; slug?: string } = {},
+): Promise<CreateResult | null> {
   const sql = db()
   if (!sql) return null
   await ensureSchema(sql)
+  const { pin, slug: wanted } = opts
+
+  if (wanted !== undefined) {
+    const shape = slugShape(wanted)
+    if (shape !== 'ok') return { ok: false, reason: shape === 'reserved' ? 'reserved' : 'bad_slug' }
+  }
+
   const token = newToken()
   const token_hash = await hashToken(token)
   const pin_salt = pin ? newSalt() : null
   const pin_hash = pin && pin_salt ? await hashPin(pin, pin_salt) : null
 
+  const insert = async (slug: string) => (await sql`
+    insert into cards (slug, data, token_hash, pin_hash, pin_salt)
+    values (${slug}, ${JSON.stringify(card)}::jsonb, ${token_hash}, ${pin_hash}, ${pin_salt})
+    on conflict (slug) do nothing
+    returning slug`) as Rows
+
+  /* A chosen slug gets exactly one attempt and a clear no. Falling back to a
+   * random one would hand back a link they did not ask for, under a message
+   * saying they got what they wanted. */
+  if (wanted) {
+    const rows = await insert(wanted)
+    return rows.length ? { ok: true, slug: wanted, token } : { ok: false, reason: 'taken' }
+  }
+
   /* A collision in 32^8 is vanishingly unlikely, but "vanishingly" is not
    * "never" and the cost of handling it is three lines. */
   for (let attempt = 0; attempt < 5; attempt++) {
     const slug = newSlug()
-    const rows = (await sql`
-      insert into cards (slug, data, token_hash, pin_hash, pin_salt)
-      values (${slug}, ${JSON.stringify(card)}::jsonb, ${token_hash}, ${pin_hash}, ${pin_salt})
-      on conflict (slug) do nothing
-      returning slug`) as Rows
-    if (rows.length) return { slug, token }
+    const rows = await insert(slug)
+    if (rows.length) return { ok: true, slug, token }
   }
-  return null
+  return { ok: false, reason: 'no_slug_available' }
 }
 
 export async function readCard(slug: string): Promise<Row | null> {

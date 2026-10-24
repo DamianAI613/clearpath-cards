@@ -42,11 +42,16 @@ export const EMPTY_CARD: Card = { v: 1, name: '', links: [] }
  * codepoint. A card renders on someone else's phone, on whatever font stack it
  * has, and a glyph that falls back to a tofu box is worse than two letters.
  * ⌥ for GitHub rendered as a meaningless mark - hence 'GH'. */
+/* Declaration order is UI order: the builder's chips and its kind dropdown
+ * both read this object's keys. The first four are what a business card is
+ * actually for and what travels into a saved contact; the rest are places
+ * someone might also be. */
 export const LINK_META: Record<LinkKind, { label: string; icon: string; placeholder: string }> = {
-  email:     { label: 'Email',     icon: '@',   placeholder: 'you@company.com' },
   phone:     { label: 'Phone',     icon: '☎',   placeholder: '+1 555 555 5555' },
-  sms:       { label: 'Text',      icon: 'TXT', placeholder: '+1 555 555 5555' },
+  email:     { label: 'Email',     icon: '@',   placeholder: 'you@company.com' },
   website:   { label: 'Website',   icon: '◎',   placeholder: 'company.com' },
+  address:   { label: 'Address',   icon: 'LOC', placeholder: 'City, ST' },
+  sms:       { label: 'Text',      icon: 'TXT', placeholder: '+1 555 555 5555' },
   linkedin:  { label: 'LinkedIn',  icon: 'in',  placeholder: 'linkedin.com/in/you' },
   github:    { label: 'GitHub',    icon: 'GH',  placeholder: 'github.com/you' },
   x:         { label: 'X',         icon: 'X',   placeholder: 'x.com/you' },
@@ -54,7 +59,6 @@ export const LINK_META: Record<LinkKind, { label: string; icon: string; placehol
   facebook:  { label: 'Facebook',  icon: 'f',   placeholder: 'facebook.com/you' },
   youtube:   { label: 'YouTube',   icon: '▶',   placeholder: 'youtube.com/@you' },
   calendar:  { label: 'Book time', icon: 'CAL', placeholder: 'cal.com/you' },
-  address:   { label: 'Address',   icon: 'LOC', placeholder: 'City, ST' },
   custom:    { label: 'Link',      icon: '→',   placeholder: 'https://...' },
 }
 
@@ -157,4 +161,47 @@ export function isCard(x: unknown): x is Card {
   if (typeof c.name !== 'string') return false
   if (!Array.isArray(c.links)) return false
   return c.links.every(l => l && typeof l === 'object' && typeof (l as CardLink).value === 'string')
+}
+
+/* -- Chosen links -------------------------------------------------------- */
+
+/* A slug someone picked rather than one the machine rolled.
+ *
+ * Lowercase so it survives being read aloud and retyped, dashes but not at
+ * either end, 3 to 32 characters. The length floor is not arbitrary: one and
+ * two character slugs are the scarce ones, and handing them out first-come
+ * to whoever publishes a test card is a decision that cannot be undone.
+ *
+ * These live here rather than beside the database because the builder needs
+ * them too, and importing the storage module into the browser would ship a
+ * Postgres driver to a phone. */
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30})[a-z0-9]$/
+
+/* Nothing here collides with a route - cards live under /s/ - but a card at
+ * /s/admin or /s/clearpath is a phishing surface, and "support" in a URL is
+ * worth more to someone lying than to someone honest. */
+const RESERVED_SLUGS = new Set([
+  'about', 'admin', 'api', 'app', 'apple-icon', 'app-icon', 'billing', 'c', 'card', 'cards',
+  'clearpath', 'clearpathautomation', 'contact', 'damian', 'favicon', 'help', 'icon', 'login',
+  'logout', 'manifest', 'new', 'owner', 'pay', 'privacy', 'qr', 'robots', 's', 'security',
+  'settings', 'signup', 'sitemap', 'support', 'terms', 'unlock', 'www',
+])
+
+export function slugShape(v: unknown): 'ok' | 'bad' | 'reserved' {
+  if (typeof v !== 'string' || !SLUG_RE.test(v)) return 'bad'
+  return RESERVED_SLUGS.has(v) ? 'reserved' : 'ok'
+}
+
+/* A first guess from their name. Offered, never imposed - it is prefilled
+ * and editable, and clearing it goes back to a random link. */
+export function suggestSlug(name: string): string {
+  const base = name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32)
+    .replace(/-+$/, '')
+  return base.length >= 3 ? base : ''
 }

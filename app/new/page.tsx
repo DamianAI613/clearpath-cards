@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   type Card, type CardLink, type LinkKind,
-  DEFAULT_ACCENT, EMPTY_CARD, LINK_META, isCard,
+  DEFAULT_ACCENT, EMPTY_CARD, LINK_META, isCard, slugShape, suggestSlug,
 } from '../lib/card'
 import { cardUrl, decodeCard, encodeCard } from '../lib/codec'
 import { rememberOwned } from '../lib/owned'
@@ -65,6 +65,11 @@ export default function NewCardPage() {
    * that has never seen this browser's localStorage. It is sent once, hashed
    * server-side, and never stored here. */
   const [pin, setPin] = useState('')
+  /* The link they choose, prefilled from their name and editable. Empty
+   * means "give me a random one", which is what every card got before. */
+  const [slug, setSlug] = useState('')
+  const [slugTouched, setSlugTouched] = useState(false)
+  const [slugState, setSlugState] = useState<'idle' | 'checking' | 'free' | 'taken' | 'bad' | 'reserved' | 'unknown'>('idle')
 
   /* On mount: an edit link wins over a saved draft, then fall back to the
    * draft. The edit token travels in the fragment rather than the query
@@ -107,11 +112,45 @@ export default function NewCardPage() {
     setCard(c => ({ ...c, [k]: v }))
   }, [])
 
+  /* Prefill from the name, but stop the moment they type their own: an
+   * input that keeps rewriting itself under the cursor is infuriating. */
+  useEffect(() => {
+    if (editing || slugTouched) return
+    setSlug(suggestSlug(card.name))
+  }, [card.name, editing, slugTouched])
+
+  /* Availability, debounced. The answer is about a public URL and tells the
+   * asker nothing they could not learn by opening it. */
+  useEffect(() => {
+    if (editing) return
+    const s = slug.trim()
+    if (!s) { setSlugState('idle'); return }
+    const shape = slugShape(s)
+    if (shape !== 'ok') { setSlugState(shape); return }
+    setSlugState('checking')
+    let alive = true
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/cards?slug=${encodeURIComponent(s)}`)
+        const { available, reason } = await r.json()
+        /* "Not available" and "could not ask" are different answers, and
+         * telling someone their link is taken when the database simply did
+         * not reply would send them off renaming themselves for nothing. */
+        const unreachable = reason === 'storage_unconfigured' || reason === 'storage_failed'
+        if (alive) setSlugState(available ? 'free' : unreachable ? 'unknown' : 'taken')
+      } catch {
+        if (alive) setSlugState('unknown')
+      }
+    }, 400)
+    return () => { alive = false; clearTimeout(t) }
+  }, [slug, editing])
+
   const encodedLength = useMemo(() => encodeCard(card).length, [card])
   const pinOk = /^\d{4}$/.test(pin)
   /* A PIN is required for a new card and meaningless for an edit, where the
    * card already has one and the token in hand is the proof. */
-  const ready = card.name.trim().length > 0 && (Boolean(editing) || pinOk)
+  const slugOk = !slug.trim() || slugState === 'free' || slugState === 'unknown'
+  const ready = card.name.trim().length > 0 && (Boolean(editing) || (pinOk && slugOk))
 
   async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -177,8 +216,21 @@ export default function NewCardPage() {
         const r = await fetch('/api/cards', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ card, pin: pinOk ? pin : undefined }),
+          body: JSON.stringify({ card, pin: pinOk ? pin : undefined, slug: slug.trim() || undefined }),
         })
+        /* A rejected link is not a storage failure, so it must not fall
+         * through to the fragment fallback - that would hand back a link
+         * they never asked for under a message saying it worked. */
+        if (r.status === 409 || r.status === 400) {
+          const { error } = await r.json().catch(() => ({ error: '' }))
+          setLoadMsg(
+            error === 'taken'
+              ? `“${slug.trim()}” is already taken. Pick a different link and publish again.`
+              : 'That link is not allowed. Use letters, numbers and dashes, 3 to 32 characters.',
+          )
+          setSlugState(error === 'taken' ? 'taken' : 'bad')
+          return
+        }
         if (r.ok) {
           const { slug, token } = await r.json()
           const u = `${origin}/s/${slug}`
@@ -292,6 +344,7 @@ export default function NewCardPage() {
 
   function startOver() {
     setCard(EMPTY_CARD); setPub(null); setQr(null); setStep(0); setEditing(null); setLoadMsg(''); setPin('')
+    setSlug(''); setSlugTouched(false); setSlugState('idle')
     if (window.location.hash) history.replaceState(null, '', window.location.pathname)
     try { localStorage.removeItem(DRAFT_KEY) } catch { /* private mode */ }
   }
@@ -484,6 +537,36 @@ export default function NewCardPage() {
 
                 {!editing && (
                   <div className="cc-field" style={{ marginTop: 22 }}>
+                    <label className="cc-label" htmlFor="f-slug">Choose your link</label>
+                    <div className="cc-slug">
+                      <span className="cc-slug-pre">card.clearpathautomation.io/s/</span>
+                      <input
+                        id="f-slug"
+                        className="cc-slug-input"
+                        value={slug}
+                        onChange={e => {
+                          setSlugTouched(true)
+                          setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32))
+                        }}
+                        autoComplete="off"
+                        spellCheck={false}
+                        placeholder="your-name"
+                      />
+                    </div>
+                    <p className="cc-hint" style={{ marginTop: 8 }}>
+                      {slugState === 'checking' && 'Checking…'}
+                      {slugState === 'free' && <span style={{ color: '#6EE7B7' }}>✓ That link is yours if you publish now.</span>}
+                      {slugState === 'taken' && <span style={{ color: '#FDA4AF' }}>✗ Someone already has that one.</span>}
+                      {slugState === 'bad' && <span style={{ color: '#FDA4AF' }}>✗ Letters, numbers and dashes only, 3 to 32 characters, not starting or ending with a dash.</span>}
+                      {slugState === 'reserved' && <span style={{ color: '#FDA4AF' }}>✗ That one is reserved.</span>}
+                      {slugState === 'unknown' && 'Could not check right now — publishing will tell you for certain.'}
+                      {slugState === 'idle' && 'Leave this blank and you get a random link like /s/kqjtr62q. The link is permanent: it cannot be changed after you publish, because by then people have it.'}
+                    </p>
+                  </div>
+                )}
+
+                {!editing && (
+                  <div className="cc-field">
                     <label className="cc-label" htmlFor="f-pin">Choose a 4-digit PIN</label>
                     <input
                       id="f-pin"

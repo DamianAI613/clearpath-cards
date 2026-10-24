@@ -319,6 +319,22 @@ button { font-family: inherit; }
 .cc-textarea { resize: vertical; min-height: 74px; line-height: 1.6; }
 .cc-hint { font-size: 0.84rem; color: var(--cc-dim); margin: 6px 0 0; line-height: 1.65; }
 
+/* The chosen link, shown as the URL it will become rather than as a bare
+ * text field - nobody should have to imagine what they are typing into. */
+.cc-slug {
+  display: flex; align-items: center; flex-wrap: wrap;
+  background: var(--cc-panel); border: 1px solid var(--cc-line); border-radius: 10px;
+  padding: 2px 4px 2px 12px;
+}
+.cc-slug:focus-within { border-color: var(--cc-accent-text); }
+.cc-slug-pre { font-size: 0.86rem; color: var(--cc-faint); white-space: nowrap; }
+.cc-slug-input {
+  flex: 1; min-width: 120px;
+  background: transparent; border: 0; outline: none;
+  color: var(--cc-head); font-family: inherit; font-size: 0.95rem; font-weight: 600;
+  padding: 10px 8px;
+}
+.cc-slug-input::placeholder { color: var(--cc-faint); font-weight: 400; }
 
 .cc-sticky { position: sticky; top: 26px; }
 
