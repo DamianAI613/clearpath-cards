@@ -16,6 +16,7 @@ import {
   hrefFor, displayFor, toVCard, vCardFilename,
 } from '../lib/card'
 import { ping } from '../lib/track'
+import { useFit } from '../lib/useFit'
 import OwnerStrip from './OwnerStrip'
 import UnlockEdit from './UnlockEdit'
 
@@ -81,6 +82,10 @@ export default function CardView({
 }) {
   const [note, setNote] = useState('')
   const [showQr, setShowQr] = useState(false)
+  const [tagOpen, setTagOpen] = useState(false)
+  /* The builder's preview lives in a column, not on a phone, so it is
+   * measured against the wrong thing and must not be scaled. */
+  const { ref, scale, pull } = useFit(!preview)
   const accent = card.accent || DEFAULT_ACCENT
   const { shown, hidden } = split(card.links)
 
@@ -138,7 +143,16 @@ export default function CardView({
   }
 
   return (
-    <div className="cc-card cc-in" style={{ ['--cc-accent' as string]: accent }}>
+    <div
+      ref={ref}
+      className="cc-card cc-in"
+      style={{
+        ['--cc-accent' as string]: accent,
+        ...(scale < 1
+          ? { transform: `scale(${scale})`, transformOrigin: 'top center', marginBottom: -pull }
+          : null),
+      }}
+    >
       <div className="cc-cover" />
 
       {/* The card's own QR, parked in the corner where it costs no vertical
@@ -169,7 +183,18 @@ export default function CardView({
         </h1>
         {card.title && <p className="cc-title">{card.title}</p>}
         {card.org && <p className="cc-org">{card.org}</p>}
-        {card.tagline && <p className="cc-tagline">{card.tagline}</p>}
+        {/* Clamped to two lines on a short screen, where those lines are the
+          * cheapest thing to give back. Tapping shows the rest, because
+          * truncating someone's own words with no way to read them is not a
+          * layout decision, it is a deletion. */}
+        {card.tagline && (
+          <p
+            className={tagOpen ? 'cc-tagline cc-tagline-open' : 'cc-tagline'}
+            onClick={() => setTagOpen(v => !v)}
+          >
+            {card.tagline}
+          </p>
+        )}
         {card.location && <p className="cc-loc">{card.location}</p>}
       </div>
 

@@ -58,7 +58,11 @@ button { font-family: inherit; }
 
 :focus-visible { outline: 2px solid var(--cc-accent-text); outline-offset: 2px; }
 
-@keyframes ccIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* The entrance animates `translate`, not `transform`, and the distinction is
+ * load-bearing: animation-fill-mode: both pins the final keyframe forever,
+ * and an animated `transform: none` outranks an inline transform in the
+ * cascade - which silently ate the fit scaling until it didn't. */
+@keyframes ccIn { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: none; } }
 .cc-in { animation: ccIn 0.35s ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -69,7 +73,13 @@ button { font-family: inherit; }
 /* -- The card ----------------------------------------------------------- */
 
 .cc-stage {
+  /* svh is the viewport with the browser's toolbars SHOWING - the worst
+   * case, and the only honest one to lay out against. Plain vh on iOS
+   * Safari means the viewport with the toolbars retracted, which is about
+   * 100px taller than what the reader can actually see. vh first as the
+   * fallback for anything that does not know svh. */
   min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -119,6 +129,7 @@ button { font-family: inherit; }
 .cc-title { font-size: 0.96rem; color: var(--cc-text); margin: 6px 0 0; }
 .cc-org { font-size: 0.93rem; color: var(--cc-accent-text); font-weight: 650; margin: 4px 0 0; }
 .cc-tagline { font-size: 0.89rem; color: var(--cc-muted); line-height: 1.55; margin: 10px 0 0; }
+.cc-tagline-open { -webkit-line-clamp: unset; overflow: visible; }
 .cc-loc { font-size: 0.82rem; color: var(--cc-dim); margin: 8px 0 0; }
 
 /* -- Actions ------------------------------------------------------------ */
@@ -127,6 +138,10 @@ button { font-family: inherit; }
 
 .cc-save {
   display: block; width: 100%; text-align: center;
+  /* 48 rather than 44 so that at the maximum 0.88 compression it still
+   * renders about 42px - within a couple of pixels of Apple's minimum
+   * target instead of well under it. */
+  min-height: 48px;
   padding: 13px 18px; border: none; border-radius: 12px; cursor: pointer;
   background: var(--cc-accent); color: #fff;
   font-size: 0.98rem; font-weight: 650; letter-spacing: 0.01em;
@@ -304,6 +319,7 @@ button { font-family: inherit; }
 .cc-textarea { resize: vertical; min-height: 74px; line-height: 1.6; }
 .cc-hint { font-size: 0.84rem; color: var(--cc-dim); margin: 6px 0 0; line-height: 1.65; }
 
+
 .cc-sticky { position: sticky; top: 26px; }
 
 .cc-warn {
@@ -398,6 +414,29 @@ button { font-family: inherit; }
 .cc-chip-hot { color: var(--cc-head); border-color: var(--cc-accent-text); background: var(--cc-accent-wash); }
 .cc-owner-howto { margin: 0; font-size: 0.79rem; color: var(--cc-muted); line-height: 1.6; }
 .cc-owner-howto strong { color: var(--cc-text); }
+
+/* Three bands of giving things back, in order of what costs the reader
+ * least. Everything here is height-based: a tall screen never sees it. */
+
+/* The tagline is the longest run of text on the card and the only part a
+ * reader can choose to finish later. */
+@media (max-height: 760px) {
+  .cc-tagline:not(.cc-tagline-open) {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; cursor: pointer;
+  }
+}
+
+/* Small phones. Decoration shrinks; nothing is removed. */
+@media (max-height: 700px) {
+  .cc-cover { height: 46px; }
+  .cc-head { margin-top: -26px; padding-bottom: 10px; }
+  .cc-avatar, .cc-monogram { width: 58px; height: 58px; }
+  .cc-monogram { font-size: 1.3rem; }
+  .cc-name { font-size: 1.26rem; margin-top: 9px; }
+  .cc-loc { font-size: 0.78rem; margin-top: 6px; }
+  .cc-qrmini img { width: 60px; height: 60px; }
+}
 
 /* On a phone the card should clear the viewport without scrolling, so the
  * stage gives back the breathing room it can afford to lose. */
