@@ -34,6 +34,15 @@ export function useFit(enabled: boolean) {
     const el = ref.current
     if (!enabled || !el) return
 
+    /* Do not re-fit while the reader has the secondary links open.
+     *
+     * Expanding the disclosure grows the card, which the observer below sees
+     * as "too tall" and answers by shrinking everything - so tapping a
+     * disclosure made the entire card visibly lurch and change size under
+     * the finger. The fit is a property of the card at rest. Once someone
+     * opens something, they have accepted a longer page; let it scroll. */
+    if (el.querySelector('details[open]')) return
+
     const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize || '16')
     if (rootPx > 17) { setFit({ scale: 1, pull: 0 }); return }
 
