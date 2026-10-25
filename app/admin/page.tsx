@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { adminConfigured, isAdmin } from '../lib/admin'
 import { db, stats, type CardStat } from '../lib/db'
 import DeleteCard from './DeleteCard'
+import ResetCounters from './ResetCounters'
 
 /* Is anyone actually using this?
  *
@@ -100,8 +101,10 @@ function Row({ r }: { r: CardStat }) {
   )
 }
 
-export default async function Admin({ searchParams }: { searchParams: Promise<{ e?: string }> }) {
-  const { e } = await searchParams
+export default async function Admin(
+  { searchParams }: { searchParams: Promise<{ e?: string; reset?: string }> },
+) {
+  const { e, reset } = await searchParams
   if (!(await isAdmin())) return <Gate failed={e === '1'} />
 
   if (!db()) {
@@ -155,6 +158,14 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
           </form>
         </div>
 
+        {reset && (
+          <div className={reset === 'failed' ? 'cc-warn' : 'cc-ok'} style={{ marginBottom: 18 }}>
+            {reset === 'failed'
+              ? 'The reset did not go through — storage did not respond. Nothing was changed.'
+              : `Counters cleared. ${Number(reset).toLocaleString()} recorded events deleted; every card still exists and every link still works.`}
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(168px, 1fr))', gap: 14, marginBottom: 20 }}>
           <Stat k="Cards created" v={s.cards} d={`+${s.cardsLast7} in the last 7 days`}
             tip="How many cards exist right now. A card its owner deleted is gone from this number — this is a count of what is live, not of everything ever made." />
@@ -199,6 +210,17 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
               {s.rows.map(r => <Row key={r.slug} r={r} />)}
             </tbody>
           </table>
+        </div>
+
+        <div style={{
+          marginTop: 26, paddingTop: 20, borderTop: '1px solid var(--cc-line)',
+          display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap',
+        }}>
+          <ResetCounters events={s.views + s.saves + s.shares + s.qrs + s.ctas + s.outs + s.reach} />
+          <p className="cc-hint" style={{ margin: 0, maxWidth: 420 }}>
+            Starting fresh before a launch. Clears every recorded event and zeroes views and edit
+            counts. Cards are untouched — delete those one at a time above.
+          </p>
         </div>
 
         <p className="cc-hint" style={{ marginTop: 18, maxWidth: 680 }}>

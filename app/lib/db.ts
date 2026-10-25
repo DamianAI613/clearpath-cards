@@ -332,6 +332,22 @@ export async function deleteCard(slug: string, token: string): Promise<boolean> 
   return true
 }
 
+/* Back to zero before a launch.
+ *
+ * Every number on the admin page is either a row in events or a counter on
+ * a card, so this empties the first and zeroes the second. It deliberately
+ * does NOT touch the cards themselves: wiping counters is housekeeping,
+ * deleting somebody's published card is not, and the two should never be
+ * one button. */
+export async function resetCounters(): Promise<{ events: number }> {
+  const sql = db()
+  if (!sql) return { events: 0 }
+  await ensureSchema(sql)
+  const gone = (await sql`delete from events returning id`) as Rows
+  await sql`update cards set views = 0, edits = 0`
+  return { events: gone.length }
+}
+
 /* The same deletion, by the one person who runs the service rather than by
  * the person who owns the card. This exists because a free public card tool
  * will eventually host something abusive, and the alternative is SQL typed
