@@ -44,6 +44,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         url: `/s/${slug}`,
         type: 'profile',
       },
+      /* Without this, iMessage and the rest have no picture to draw and
+       * show a grey "Tap to Load Preview" instead. summary_large_image is
+       * what makes it the big card rather than a thumbnail. */
+      twitter: {
+        card: 'summary_large_image',
+        title: name,
+        description: sub || c.tagline || '',
+      },
     }
   } catch {
     /* Metadata must never be the thing that takes the page down. */
