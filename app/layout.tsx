@@ -17,6 +17,13 @@ export const metadata: Metadata = {
     siteName: 'ClearPath Cards',
     type: 'website',
   },
+  /* Facebook and LinkedIn both read twitter:card as a fallback, and it is
+   * what turns a link post from a grey box into a picture. */
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ClearPath Cards',
+    description: 'A free digital business card. One link, no account.',
+  },
 }
 
 export const viewport: Viewport = {
