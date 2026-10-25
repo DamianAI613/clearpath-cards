@@ -432,7 +432,7 @@ export default function NewCardPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, flexWrap: 'wrap', gap: 12 }}>
           <Link href="/" className="cc-eyebrow" style={{ margin: 0 }}>← ClearPath Cards</Link>
           <Link href="/tutorials" className="cc-hint" style={{ margin: 0, color: 'var(--cc-accent-text)', fontWeight: 650 }}>
-            How it works
+            Tutorial
           </Link>
           <button className="cc-ghost" style={{ flex: 'none', padding: '8px 14px' }} onClick={startOver} type="button">
             Start over
@@ -455,7 +455,9 @@ export default function NewCardPage() {
                 <h2 className="cc-h2">Who you are</h2>
 
                 <div className="cc-field" style={{ paddingBottom: 16, borderBottom: '1px solid var(--cc-line)', marginBottom: 20 }}>
-                  <label className="cc-label" htmlFor="f-load">Already have a card? Change it here</label>
+                  <label className="cc-label" htmlFor="f-load">
+                    Already have a card? Change it here — otherwise skip to Name below
+                  </label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input id="f-load" className="cc-input" value={loadInput}
                       onChange={e => setLoadInput(e.target.value)}
@@ -471,10 +473,11 @@ export default function NewCardPage() {
                     * be read as a warning. */}
                   {!pending && !editing && (
                     <p className="cc-hint">
-                      Paste your card&apos;s own link and we will ask for its 4-digit PIN — that edits
-                      the real card. Pasting anyone&apos;s link <strong>without</strong> the PIN only
-                      loads a <strong>copy</strong>, and publishing a copy creates a brand-new card at
-                      a new link. It never changes the original.
+                      <strong>Making your first card? Ignore this box</strong> and start at Name
+                      below. This one is for changing a card that already exists: paste its link and
+                      we will ask for its 4-digit PIN. Pasting any link <strong>without</strong> the
+                      PIN only loads a <strong>copy</strong> — publishing a copy creates a brand-new
+                      card at a new link and never changes the original.
                     </p>
                   )}
 

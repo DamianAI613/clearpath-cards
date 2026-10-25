@@ -7,7 +7,7 @@ import { AndroidSteps, IphoneSteps } from './PhoneSteps'
  * at, how do I get one, and how do I stop having to find it again. */
 
 export const metadata: Metadata = {
-  title: 'How it works',
+  title: 'Tutorial',
   description: 'What every button on a ClearPath card does, how to make one, and how to keep it one tap away.',
 }
 
@@ -48,7 +48,7 @@ export default function Tutorials() {
         <Link href="/" className="cc-eyebrow" style={{ display: 'inline-block', marginBottom: 18 }}>
           ← ClearPath Cards
         </Link>
-        <h1 className="cc-h1" style={{ fontSize: '2.1rem', marginBottom: 10 }}>How it works</h1>
+        <h1 className="cc-h1" style={{ fontSize: '2.1rem', marginBottom: 10 }}>Tutorial</h1>
         <p className="cc-lede" style={{ marginBottom: 14 }}>
           Three things: what every button does, how to make a card, and how to stop having to look
           for it.

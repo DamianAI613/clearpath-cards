@@ -317,13 +317,25 @@ export default function CardView({
         * the business behind the free tool is named. The owner does not
         * need a Build button - they are holding the thing it builds. */}
       <div className="cc-foot">
-        <a
-          className="cc-cta"
-          href="https://card.clearpathautomation.io/new"
-          onClick={preview ? e => e.preventDefault() : () => ping(slug ?? 'fragment', 'cta')}
-        >
-          Build your own card — free
-        </a>
+        {/* Two doors side by side rather than stacked: a visitor who is
+          * sold taps the first, and one who is curious but unsure taps the
+          * second instead of leaving. Sharing one row costs no height. */}
+        <div className="cc-ctarow">
+          <a
+            className="cc-cta"
+            href="https://card.clearpathautomation.io/new"
+            onClick={preview ? e => e.preventDefault() : () => ping(slug ?? 'fragment', 'cta')}
+          >
+            Build your own card — free
+          </a>
+          <a
+            className="cc-cta cc-cta-alt"
+            href="https://card.clearpathautomation.io/tutorials"
+            onClick={preview ? e => e.preventDefault() : () => ping(slug ?? 'fragment', 'cta')}
+          >
+            Tutorial
+          </a>
+        </div>
         <a
           className="cc-footlink"
           href="https://clearpathautomation.io"

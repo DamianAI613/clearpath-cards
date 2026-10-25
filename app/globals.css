@@ -251,13 +251,20 @@ button { font-family: inherit; }
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   text-align: center;
 }
+.cc-ctarow { display: flex; gap: 7px; width: 100%; }
 .cc-cta {
-  width: 100%; padding: 10px 14px; border-radius: 11px;
+  flex: 1 1 auto; padding: 10px 14px; border-radius: 11px;
   border: 1px solid var(--cc-accent-text); background: var(--cc-accent-wash);
   color: var(--cc-head); font-size: 0.84rem; font-weight: 700;
   transition: background 0.15s ease;
 }
 .cc-cta:hover { background: color-mix(in srgb, var(--cc-accent) 32%, transparent); }
+/* Quieter and narrower: the second choice, not a rival to the first. */
+.cc-cta-alt {
+  flex: 0 0 auto; background: transparent; border-color: var(--cc-line);
+  color: var(--cc-dim); font-weight: 650;
+}
+.cc-cta-alt:hover { background: var(--cc-soft); color: var(--cc-head); border-color: var(--cc-accent-text); }
 .cc-footlink { font-size: 0.78rem; color: var(--cc-accent-text); font-weight: 650; }
 .cc-footlink:hover { color: var(--cc-head); }
 
