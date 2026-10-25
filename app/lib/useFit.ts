@@ -29,19 +29,38 @@ const FLOOR = 0.88
 export function useFit(enabled: boolean) {
   const ref = useRef<HTMLDivElement | null>(null)
   const [fit, setFit] = useState<{ scale: number; pull: number }>({ scale: 1, pull: 0 })
+  /* The viewport the current fit was calculated against, and whether one
+   * has been calculated at all. */
+  const settled = useRef(false)
+  const lastViewport = useRef(0)
+
+  const viewportChanged = useCallback(() => {
+    const h = Math.round(window.visualViewport?.height ?? window.innerHeight)
+    const w = Math.round(window.innerWidth)
+    const key = h * 10000 + w
+    if (key === lastViewport.current) return false
+    lastViewport.current = key
+    return true
+  }, [])
 
   const measure = useCallback(() => {
     const el = ref.current
     if (!enabled || !el) return
 
-    /* Do not re-fit while the reader has the secondary links open.
+    /* Never re-fit because the card itself grew.
      *
-     * Expanding the disclosure grows the card, which the observer below sees
-     * as "too tall" and answers by shrinking everything - so tapping a
-     * disclosure made the entire card visibly lurch and change size under
-     * the finger. The fit is a property of the card at rest. Once someone
-     * opens something, they have accepted a longer page; let it scroll. */
-    if (el.querySelector('details[open]')) return
+     * The fit is a property of the card AT REST, measured once it has
+     * settled. Anything that makes it taller afterwards is something the
+     * reader deliberately opened - the secondary links, the share menu, the
+     * PIN box - and shrinking the whole card in response made it lurch and
+     * change size under their finger. Twice: fixing it for the disclosure
+     * left the share menu doing exactly the same thing, because the guard
+     * named one element instead of describing the rule.
+     *
+     * So the rule, properly: re-measure when the VIEWPORT changes, never
+     * when the content does. Once someone opens something they have
+     * accepted a longer page; let it scroll. */
+    if (settled.current && !viewportChanged()) return
 
     const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize || '16')
     if (rootPx > 17) { setFit({ scale: 1, pull: 0 }); return }
@@ -59,33 +78,37 @@ export function useFit(enabled: boolean) {
      * scrollbar on cards that were otherwise exactly fitted. */
     const available = viewport - pad - 2
 
+    settled.current = true
     if (needed <= available || needed === 0) { setFit({ scale: 1, pull: 0 }); return }
 
     const scale = Math.max(FLOOR, available / needed)
     /* A scaled element still occupies its full unscaled box, so without this
      * the page keeps the scroll the scaling was meant to remove. */
     setFit({ scale, pull: Math.round(needed * (1 - scale)) })
-  }, [enabled])
+  }, [enabled, viewportChanged])
 
   useEffect(() => {
     if (!enabled) return
+    /* The first three passes are the settling period - the card has just
+     * mounted, fonts have not landed, and heights are still moving - so
+     * they are allowed through regardless of the viewport check. */
+    settled.current = false
     measure()
-    /* Fonts land after first paint and change every height on the card. */
-    document.fonts?.ready.then(measure).catch(() => {})
-    const t = setTimeout(measure, 350)
+    document.fonts?.ready.then(() => { settled.current = false; measure() }).catch(() => {})
+    const t = setTimeout(() => { settled.current = false; measure() }, 350)
 
+    /* Deliberately NOT a ResizeObserver on the card. That observer was the
+     * bug: it fires when the card grows, and the card grows whenever
+     * somebody opens something. Only the viewport is watched now. */
     window.addEventListener('resize', measure)
     window.addEventListener('orientationchange', measure)
     window.visualViewport?.addEventListener('resize', measure)
-    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
-    if (ro && ref.current) ro.observe(ref.current)
 
     return () => {
       clearTimeout(t)
       window.removeEventListener('resize', measure)
       window.removeEventListener('orientationchange', measure)
       window.visualViewport?.removeEventListener('resize', measure)
-      ro?.disconnect()
     }
   }, [enabled, measure])
 
