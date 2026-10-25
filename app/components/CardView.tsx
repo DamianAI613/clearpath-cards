@@ -10,7 +10,7 @@
  * collapse behind a disclosure rather than pushing the primary action off
  * the bottom of the screen. */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   type Card, type CardLink, DEFAULT_ACCENT, LINK_META,
   hrefFor, displayFor, toVCard, vCardFilename,
@@ -88,11 +88,21 @@ export default function CardView({
   slug?: string
 }) {
   const [note, setNote] = useState('')
+  const [showShare, setShowShare] = useState(false)
   const [showQr, setShowQr] = useState(false)
   const [tagOpen, setTagOpen] = useState(false)
   /* The builder's preview lives in a column, not on a phone, so it is
    * measured against the wrong thing and must not be scaled. */
   const { ref, scale, pull } = useFit(!preview)
+  /* Detected after mount, never during render: the server has no navigator,
+   * and deciding this during render would be a hydration mismatch on every
+   * card in the product. */
+  const [canSheet, setCanSheet] = useState(false)
+  const [canNfc, setCanNfc] = useState(false)
+  useEffect(() => {
+    setCanSheet(typeof navigator.share === 'function')
+    setCanNfc('NDEFReader' in window)
+  }, [])
   const accent = card.accent || DEFAULT_ACCENT
   const { shown, hidden } = split(card.links)
 
@@ -111,14 +121,9 @@ export default function CardView({
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  /* One button, because handing someone your card is one intention.
-   *
-   * On a phone it opens the messaging app with the message already written -
-   * that is the actual gesture people make, and the link it carries is the
-   * whole card, not just a phone number. iOS and Android disagree about the
-   * separator in an sms: URL, and both are wrong on the other platform, so
-   * this picks per platform. Desktop has no messaging app to open, so it
-   * falls back to the share sheet, then to the clipboard. */
+  /* ClearPath's own text line. iOS and Android disagree about the separator
+   * in an sms: URL and each rejects the other's, so this picks per platform
+   * rather than being wrong half the time. */
   function textClearPath() {
     if (preview) return
     ping(slug ?? 'fragment', 'reach')
@@ -127,34 +132,81 @@ export default function CardView({
     window.location.href = `sms:${CP_PHONE}${ios ? '&' : '?'}body=${encodeURIComponent(CP_ASK)}`
   }
 
-  async function shareInfo() {
-    if (preview) return
-    ping(slug ?? 'fragment', 'share')
+  /* Handing someone your card is one intention with several shapes, and
+   * which one is right depends on who is standing there: a text to a client,
+   * AirDrop to the person beside you, an email to someone who reads it on
+   * Monday. Going straight into Messages decided that for them.
+   *
+   * What is deliberately NOT here is a button per chat app. The operating
+   * system's own share sheet already lists Messenger, WhatsApp, AirDrop and
+   * whatever else is installed, and it is always right about which of those
+   * exist - a hard-coded Messenger button is a dead end on a phone without
+   * Messenger. */
+  function shareText(): { url: string; body: string } {
     const url = window.location.href
     const who = card.name.trim()
-    const body = who
-      ? `${who} — contact details and links, all on one page: ${url}`
-      : `My contact details and links, all on one page: ${url}`
-
-    const ua = navigator.userAgent || ''
-    const ios = /iPad|iPhone|iPod/.test(ua)
-    const android = /Android/.test(ua)
-    if (ios || android) {
-      window.location.href = `sms:${ios ? '&' : '?'}body=${encodeURIComponent(body)}`
-      return
+    return {
+      url,
+      body: who
+        ? `${who} — contact details and links, all on one page: ${url}`
+        : `My contact details and links, all on one page: ${url}`,
     }
+  }
 
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ title: who || 'Digital card', text: body, url })
-        return
-      } catch { /* dismissed */ }
-    }
+  function viaText() {
+    if (preview) return
+    ping(slug ?? 'fragment', 'share')
+    const { body } = shareText()
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '')
+    window.location.href = `sms:${ios ? '&' : '?'}body=${encodeURIComponent(body)}`
+  }
+
+  function viaEmail() {
+    if (preview) return
+    ping(slug ?? 'fragment', 'share')
+    const { url, body } = shareText()
+    const subject = card.name.trim() ? `${card.name.trim()} — contact details` : 'My contact details'
+    window.location.href =
+      `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`${body}\n\n${url}`)}`
+  }
+
+  async function viaSheet() {
+    if (preview) return
+    ping(slug ?? 'fragment', 'share')
+    const { url, body } = shareText()
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.share({ title: card.name.trim() || 'Digital card', text: body, url })
+    } catch { /* dismissed */ }
+  }
+
+  async function viaCopy() {
+    if (preview) return
+    ping(slug ?? 'fragment', 'share')
+    try {
+      await navigator.clipboard.writeText(window.location.href)
       setNote('Link copied ✓')
       setTimeout(() => setNote(''), 1800)
     } catch { /* permission-gated */ }
+  }
+
+  /* Web NFC writes a link onto a blank tag or sticker - the kind you stick
+   * to the back of a printed card. It is not phone-to-phone: Android Beam is
+   * gone and iOS has never exposed NFC writing to the web at all. So the
+   * button appears only where the API exists, and it says what it does. */
+  async function viaNfc() {
+    if (preview) return
+    type NdefCtor = new () => { write: (message: unknown) => Promise<void> }
+    const Ctor = (window as unknown as { NDEFReader?: NdefCtor }).NDEFReader
+    if (!Ctor) return
+    setNote('Hold a blank NFC tag to your phone…')
+    try {
+      await new Ctor().write({ records: [{ recordType: 'url', data: window.location.href }] })
+      ping(slug ?? 'fragment', 'share')
+      setNote('Written to the tag ✓')
+    } catch {
+      setNote('Nothing written — reposition the tag and try again.')
+    }
+    setTimeout(() => setNote(''), 4000)
   }
 
   return (
@@ -221,9 +273,23 @@ export default function CardView({
         <button className="cc-save" onClick={saveContact} type="button">
           Save to contacts
         </button>
-        <button className="cc-share" onClick={shareInfo} type="button">
-          {note || 'Share this info'}
+        <button className="cc-share" onClick={() => setShowShare(v => !v)} type="button" aria-expanded={showShare}>
+          {note || (showShare ? 'Share this info ▴' : 'Share this info ▾')}
         </button>
+
+        {showShare && !preview && (
+          <div className="cc-sharemenu">
+            <button className="cc-sharebtn" onClick={viaText} type="button">Text message</button>
+            <button className="cc-sharebtn" onClick={viaEmail} type="button">Email</button>
+            {canSheet && (
+              <button className="cc-sharebtn" onClick={viaSheet} type="button">AirDrop, Messenger, more…</button>
+            )}
+            <button className="cc-sharebtn" onClick={viaCopy} type="button">Copy link</button>
+            {canNfc && (
+              <button className="cc-sharebtn" onClick={viaNfc} type="button">Write to an NFC tag</button>
+            )}
+          </div>
+        )}
       </div>
 
       {shown.length > 0 && (

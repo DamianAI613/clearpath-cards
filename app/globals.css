@@ -164,6 +164,19 @@ button { font-family: inherit; }
 .cc-share:hover { border-color: var(--cc-accent-text); color: var(--cc-head); background: var(--cc-soft2); }
 .cc-share:active { transform: translateY(1px); }
 
+/* The ways to hand it over. Two columns, so five options cost two and a
+ * half rows rather than five and the card still clears a phone. */
+.cc-sharemenu { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cc-sharebtn {
+  padding: 10px 8px; border-radius: 10px; cursor: pointer;
+  background: var(--cc-soft); border: 1px solid var(--cc-line);
+  color: var(--cc-text); font-family: inherit; font-size: 0.8rem; font-weight: 600;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.cc-sharebtn:hover { border-color: var(--cc-accent-text); color: var(--cc-head); background: var(--cc-soft2); }
+/* An odd one out spans the row rather than leaving a hole beside it. */
+.cc-sharemenu > .cc-sharebtn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
 .cc-links { padding: 0 22px 12px; display: flex; flex-direction: column; gap: 7px; }
 
 .cc-link {
