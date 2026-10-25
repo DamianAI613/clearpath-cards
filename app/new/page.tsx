@@ -431,6 +431,9 @@ export default function NewCardPage() {
       <div className="cc-wrap">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, flexWrap: 'wrap', gap: 12 }}>
           <Link href="/" className="cc-eyebrow" style={{ margin: 0 }}>← ClearPath Cards</Link>
+          <Link href="/tutorials" className="cc-hint" style={{ margin: 0, color: 'var(--cc-accent-text)', fontWeight: 650 }}>
+            How it works
+          </Link>
           <button className="cc-ghost" style={{ flex: 'none', padding: '8px 14px' }} onClick={startOver} type="button">
             Start over
           </button>

@@ -294,6 +294,21 @@ button { font-family: inherit; }
   margin-top: 12px; padding: 14px 15px;
   background: var(--cc-soft); border: 1px solid var(--cc-accent-text); border-radius: 12px;
 }
+/* -- Tutorials ----------------------------------------------------------- */
+
+.cc-tut-split { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 26px; align-items: start; }
+@media (max-width: 760px) { .cc-tut-split { grid-template-columns: minmax(0, 1fr); } }
+
+.cc-tut-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.cc-tut-list li { display: flex; gap: 12px; align-items: flex-start; }
+.cc-tut-list strong { color: var(--cc-head); font-size: 0.95rem; }
+.cc-tut-n {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--cc-accent); color: #fff;
+  font-size: 0.78rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+
 .cc-unlock-box code {
   font-family: var(--cc-mono); font-size: 0.85em;
   background: var(--cc-soft2); padding: 1px 5px; border-radius: 5px; color: var(--cc-text);
